@@ -67,16 +67,21 @@ func _take_action() -> void:
 func _buy_mobs(budget: int, round_num: int) -> void:
 	if _mob_items.is_empty():
 		return
+	# Army persists across rounds - only buy a few new mobs each PREP
+	# Cap new purchases to avoid runaway army growth
+	var max_new_mobs := 3 + round_num  # scales mildly with round
+	var purchased := 0
 	var remaining := budget
 	# Higher rounds unlock better mobs
 	var max_tier := mini(round_num, _mob_items.size() - 1)
-	while remaining > 0:
+	while remaining > 0 and purchased < max_new_mobs:
 		var tier := randi() % (max_tier + 1)
 		var mob_data: MobData = _mob_items[tier]
 		if mob_data.cost <= remaining and EconomyManager.can_afford(1, mob_data.cost):
 			EconomyManager.spend(1, mob_data.cost)
 			player_world.call("_queue_mob", mob_data)
 			remaining -= mob_data.cost
+			purchased += 1
 		else:
 			break  # can't afford anything more
 

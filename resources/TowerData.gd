@@ -31,5 +31,6 @@ enum TowerType {
 @export var upgrade_ids: Array[StringName] = []
 
 # Visual
+@export var icon_color: Color = Color(0.5, 0.5, 0.5)
 @export var model_path: String = ""       # path to GLB scene
 @export var model_scale: float = 1.0

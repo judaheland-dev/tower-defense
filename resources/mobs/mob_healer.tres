@@ -25,5 +25,6 @@ buff_radius = 2.0
 debuffs_nearby_towers = false
 debuff_attack_slow = 0.5
 debuff_radius = 2.0
+icon_color = Color(0.4, 0.9, 0.5, 1)
 model_path = "res://assets/models/mini-dungeon/Models/GLB format/character-human.glb"
-model_scale = 4.0
+model_scale = 2.0

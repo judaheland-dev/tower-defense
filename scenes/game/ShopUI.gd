@@ -26,6 +26,9 @@ var _focused_idx: int = 0
 var _nav_timer: float = 0.0
 const NAV_REPEAT_DELAY: float = 0.18
 
+# Pre-rendered 3D model icon textures, set by Game.gd before add_child
+var icon_cache: Dictionary = {}
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_items()
@@ -130,12 +133,34 @@ func _make_item_button(item: Resource, font: FontFile) -> Button:
 	var name_str: String = item.get("display_name") if item.get("display_name") else "?"
 	var cost: int = item.get("cost") if item.get("cost") != null else 0
 	var desc: String = item.get("description") if item.get("description") else ""
-	btn.text = "%s\n%d coins\n%s" % [name_str, cost, desc.left(40)]
-	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	# Layout: HBoxContainer with icon on left + text on right
+	var hbox := HBoxContainer.new()
+	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hbox.add_theme_constant_override("separation", 8)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var icon := _make_item_icon(item, 48)
+	hbox.add_child(icon)
+
+	var text_label := Label.new()
+	text_label.text = "%s - %d coins\n%s" % [name_str, cost, desc.left(45)]
+	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if font:
+		text_label.add_theme_font_override("font", font)
+	text_label.add_theme_font_size_override("font_size", 13)
+	hbox.add_child(text_label)
+
+	btn.add_child(hbox)
 
 	if font:
 		btn.add_theme_font_override("font", font)
 	btn.add_theme_font_size_override("font_size", 14)
+	# Hide button's own text since we use the label inside hbox
+	btn.text = ""
 
 	btn.pressed.connect(func() -> void:
 		if player_world:
@@ -145,6 +170,33 @@ func _make_item_button(item: Resource, font: FontFile) -> Button:
 	)
 	_item_buttons.append(btn)
 	return btn
+
+func _make_item_icon(item: Resource, size: int) -> TextureRect:
+	var model_path: String = item.get("model_path") if item.get("model_path") else ""
+	var color: Color = item.get("icon_color") if item.get("icon_color") != null else Color(0.5, 0.5, 0.5)
+	var rect := TextureRect.new()
+	rect.custom_minimum_size = Vector2(size, size)
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if model_path != "" and icon_cache.has(model_path):
+		rect.texture = icon_cache[model_path]
+		rect.self_modulate = color
+	else:
+		# Fallback: colored square
+		var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+		var border := Color(color.r * 0.5, color.g * 0.5, color.b * 0.5, 1.0)
+		var highlight := Color(minf(color.r + 0.3, 1.0), minf(color.g + 0.3, 1.0), minf(color.b + 0.3, 1.0), 1.0)
+		for y in size:
+			for x in size:
+				if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+					img.set_pixel(x, y, border)
+				elif x <= 2 or y <= 2:
+					img.set_pixel(x, y, highlight)
+				else:
+					img.set_pixel(x, y, color)
+		rect.texture = ImageTexture.create_from_image(img)
+	return rect
 
 func toggle() -> void:
 	_set_panel_visible(not _is_visible)

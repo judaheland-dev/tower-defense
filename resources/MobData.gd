@@ -30,5 +30,6 @@ class_name MobData
 @export var debuff_radius: float = 2.0
 
 # Visual
+@export var icon_color: Color = Color(0.5, 0.5, 0.5)
 @export var model_path: String = ""
 @export var model_scale: float = 1.0

@@ -90,7 +90,7 @@ func _spawn_queued_mobs() -> void:
 		for mob_data in queued:
 			defender_world.call("spawn_mob", mob_data)
 			_mobs_spawned_on_field[defender_index] += 1
-		attacker_world.call("clear_queued_mobs")
+		# Army persists across rounds - do NOT clear the queue
 
 func _check_play_end() -> void:
 	for i in player_worlds.size():

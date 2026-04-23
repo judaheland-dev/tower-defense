@@ -43,6 +43,8 @@ var shop_open: bool = false
 signal hp_changed(new_hp: int)
 signal mob_reached_exit(mob: Node)
 signal selected_item_changed(item: Resource)
+signal mob_queue_changed()
+signal tower_changed()
 
 func _ready() -> void:
 	add_to_group("nav_geo")  # lets the NavigationMesh bake scan this node + all children
@@ -321,6 +323,14 @@ func get_selected_item_name() -> String:
 func _try_place() -> void:
 	if _selected_item == null:
 		return
+	# Mob purchases don't need a grid cell - handle before any grid checks
+	if _selected_item is MobData:
+		var data: MobData = _selected_item
+		if not EconomyManager.can_afford(player_index, data.cost):
+			return
+		EconomyManager.spend(player_index, data.cost)
+		_queue_mob(data)
+		return
 	if _grid[_cursor_col][_cursor_row]:
 		return  # already occupied
 	# Protect cells near spawn (center edge) and exit (outer edge)
@@ -345,12 +355,6 @@ func _try_place() -> void:
 		_grid[_cursor_col][_cursor_row] = true
 		EconomyManager.spend(player_index, data.cost)
 		_spawn_tower(data, _cursor_col, _cursor_row)
-	elif _selected_item is MobData:
-		var data: MobData = _selected_item
-		if not EconomyManager.can_afford(player_index, data.cost):
-			return
-		EconomyManager.spend(player_index, data.cost)
-		_queue_mob(data)
 
 func _try_sell() -> void:
 	var key := "%d,%d" % [_cursor_col, _cursor_row]
@@ -364,6 +368,7 @@ func _try_sell() -> void:
 	_tower_nodes.erase(key)
 	_grid[_cursor_col][_cursor_row] = false
 	_pathfinding.bake_async()
+	tower_changed.emit()
 
 # ---------- tower spawning ----------
 
@@ -377,6 +382,7 @@ func _spawn_tower(data: TowerData, col: int, row: int) -> void:
 	var key := "%d,%d" % [col, row]
 	_tower_nodes[key] = tower
 	_pathfinding.bake_async()
+	tower_changed.emit()
 	AudioManager.play_sfx_path("res://assets/audio/sfx_place.ogg", -4.0)
 
 # ---------- mob management ----------
@@ -385,6 +391,7 @@ var _queued_mobs: Array[MobData] = []
 
 func _queue_mob(data: MobData) -> void:
 	_queued_mobs.append(data)
+	mob_queue_changed.emit()
 	AudioManager.play_sfx_path("res://assets/audio/sfx_click.ogg", -6.0, 0.9)
 
 func get_queued_mobs() -> Array[MobData]:
@@ -392,6 +399,29 @@ func get_queued_mobs() -> Array[MobData]:
 
 func clear_queued_mobs() -> void:
 	_queued_mobs.clear()
+	mob_queue_changed.emit()
+
+func get_queued_mob_counts() -> Dictionary:
+	# Returns {display_name: {"count": int, "color": Color, "model_path": String}}
+	var counts := {}
+	for mob_data in _queued_mobs:
+		var n: String = mob_data.display_name
+		if not counts.has(n):
+			counts[n] = {"count": 0, "color": mob_data.icon_color, "model_path": mob_data.model_path}
+		counts[n]["count"] += 1
+	return counts
+
+func get_tower_counts() -> Dictionary:
+	# Returns {display_name: {"count": int, "color": Color, "model_path": String}}
+	var counts := {}
+	for tower_node in _tower_nodes.values():
+		var data: TowerData = tower_node.get("data")
+		if data:
+			var n: String = data.display_name
+			if not counts.has(n):
+				counts[n] = {"count": 0, "color": data.icon_color, "model_path": data.model_path}
+			counts[n]["count"] += 1
+	return counts
 
 func spawn_mob(data: MobData) -> void:
 	var mob: Node = load("res://scenes/game/MobNode.gd").new()
@@ -446,6 +476,7 @@ func on_tower_destroyed(tower: Node) -> void:
 			if parts.size() == 2:
 				_grid[int(parts[0])][int(parts[1])] = false
 			_pathfinding.bake_async()
+			tower_changed.emit()
 			break
 
 func _on_state_changed(new_state: GameManager.GameState) -> void:

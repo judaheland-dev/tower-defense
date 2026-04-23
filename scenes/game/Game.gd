@@ -13,10 +13,13 @@ var _p1_hud: CanvasLayer = null
 var _p2_hud: CanvasLayer = null
 var _shop_uis: Array[Node] = []
 var _world_root: Node3D = null
+var _info_labels: Array[HBoxContainer] = []  # army/defense info container per player
+var _icon_cache: Dictionary = {}  # model_path -> ImageTexture (pre-rendered 3D icons)
 
 func _ready() -> void:
 	_build_world()
 	_build_huds()
+	await _prerender_item_icons()
 	_build_round_manager()
 
 	GameManager.state_changed.connect(_on_state_changed)
@@ -120,6 +123,9 @@ func _build_huds() -> void:
 	_player_worlds[0].hp_changed.connect(func(_hp: int) -> void: _refresh_hud_label(0, p1_label))
 	_player_worlds[0].selected_item_changed.connect(func(_item: Resource) -> void: _refresh_hud_label(0, p1_label))
 
+	var p1_info := _make_info_strip(Color(0.08, 0.12, 0.25, 0.80), font, 0, 0, 1080 - HUD_STRIP_HEIGHT - 28)
+	_p1_hud.add_child(p1_info)
+
 	# P2 HUD strip - bottom-right corner
 	_p2_hud = CanvasLayer.new()
 	_p2_hud.layer = 2
@@ -131,6 +137,9 @@ func _build_huds() -> void:
 	_refresh_hud_label(1, p2_label)
 	_player_worlds[1].hp_changed.connect(func(_hp: int) -> void: _refresh_hud_label(1, p2_label))
 	_player_worlds[1].selected_item_changed.connect(func(_item: Resource) -> void: _refresh_hud_label(1, p2_label))
+
+	var p2_info := _make_info_strip(Color(0.25, 0.08, 0.08, 0.80), font, 1, 960, 1080 - HUD_STRIP_HEIGHT - 28)
+	_p2_hud.add_child(p2_info)
 
 func _make_hud_strip(color: Color, font: FontFile, player_index: int, x_offset: int, y_offset: int) -> ColorRect:
 	var strip := ColorRect.new()
@@ -173,6 +182,209 @@ func _refresh_hud_label(player_index: int, label: Label) -> void:
 	var item_str := ("  [%s]" % item_name) if item_name != "" else ""
 	label.text = "%s  HP: %d  Coins: %d%s" % [prefix, hp, coins, item_str]
 
+func _make_info_strip(color: Color, font: FontFile, player_index: int, x_offset: int, y_offset: int) -> ColorRect:
+	var strip := ColorRect.new()
+	strip.color = color
+	strip.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	strip.offset_left = x_offset
+	strip.offset_top = y_offset
+	strip.offset_right = x_offset + 960
+	strip.offset_bottom = y_offset + 28
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var hbox := HBoxContainer.new()
+	hbox.name = "InfoContainer"
+	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hbox.offset_left = 12
+	hbox.offset_right = -12
+	hbox.add_theme_constant_override("separation", 6)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.add_child(hbox)
+
+	# Store for later refresh
+	while _info_labels.size() <= player_index:
+		_info_labels.append(null)
+	_info_labels[player_index] = hbox
+
+	# Connect signals for live updates
+	var world := _player_worlds[player_index]
+	world.mob_queue_changed.connect(func() -> void: _refresh_info_label(player_index))
+	world.tower_changed.connect(func() -> void: _refresh_info_label(player_index))
+	EconomyManager.coins_changed.connect(
+		func(idx: int, _amount: int) -> void:
+			if idx == player_index:
+				_refresh_info_label(player_index)
+	)
+
+	_refresh_info_label(player_index)
+	return strip
+
+func _refresh_info_label(player_index: int) -> void:
+	if player_index >= _info_labels.size() or _info_labels[player_index] == null:
+		return
+	var hbox: HBoxContainer = _info_labels[player_index]
+	var world := _player_worlds[player_index]
+	var font := GameManager.kenney_font()
+
+	# Clear previous children
+	for child in hbox.get_children():
+		child.queue_free()
+
+	var mob_counts: Dictionary = world.call("get_queued_mob_counts")
+	var tower_counts: Dictionary = world.call("get_tower_counts")
+
+	if not mob_counts.is_empty():
+		var army_label := Label.new()
+		army_label.text = "Army:"
+		if font:
+			army_label.add_theme_font_override("font", font)
+		army_label.add_theme_font_size_override("font_size", 12)
+		army_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.5))
+		army_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hbox.add_child(army_label)
+		for mob_name in mob_counts:
+			var info: Dictionary = mob_counts[mob_name]
+			_add_icon_count(hbox, info, mob_name, font)
+
+	if not mob_counts.is_empty() and not tower_counts.is_empty():
+		var sep := Label.new()
+		sep.text = "|"
+		sep.add_theme_font_size_override("font_size", 12)
+		sep.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hbox.add_child(sep)
+
+	if not tower_counts.is_empty():
+		var tower_label := Label.new()
+		tower_label.text = "Towers:"
+		if font:
+			tower_label.add_theme_font_override("font", font)
+		tower_label.add_theme_font_size_override("font_size", 12)
+		tower_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+		tower_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hbox.add_child(tower_label)
+		for tower_name in tower_counts:
+			var info: Dictionary = tower_counts[tower_name]
+			_add_icon_count(hbox, info, tower_name, font)
+
+func _add_icon_count(hbox: HBoxContainer, info: Dictionary, item_name: String, font: FontFile) -> void:
+	var model_path: String = info.get("model_path", "")
+	var icon := _make_mini_icon(info["color"], 18, model_path)
+	hbox.add_child(icon)
+
+	var lbl := Label.new()
+	lbl.text = "%s x%d" % [item_name, info["count"]]
+	if font:
+		lbl.add_theme_font_override("font", font)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hbox.add_child(lbl)
+
+func _make_mini_icon(color: Color, size: int, model_path: String = "") -> TextureRect:
+	var rect := TextureRect.new()
+	rect.custom_minimum_size = Vector2(size, size)
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if model_path != "" and _icon_cache.has(model_path):
+		rect.texture = _icon_cache[model_path]
+		rect.self_modulate = color
+	else:
+		# Fallback: colored square
+		var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+		var border := Color(color.r * 0.5, color.g * 0.5, color.b * 0.5, 1.0)
+		for y in size:
+			for x in size:
+				if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+					img.set_pixel(x, y, border)
+				else:
+					img.set_pixel(x, y, color)
+		rect.texture = ImageTexture.create_from_image(img)
+	return rect
+
+func _prerender_item_icons() -> void:
+	var item_paths := [
+		"res://resources/towers/wall_basic.tres",
+		"res://resources/towers/tower_arrow.tres",
+		"res://resources/towers/tower_cannon.tres",
+		"res://resources/towers/tower_slow.tres",
+		"res://resources/mobs/mob_basic.tres",
+		"res://resources/mobs/mob_armored.tres",
+		"res://resources/mobs/mob_fast.tres",
+		"res://resources/mobs/mob_healer.tres",
+	]
+
+	var unique_models: Dictionary = {}  # model_path -> render_scale (float)
+	for path in item_paths:
+		if not ResourceLoader.exists(path):
+			continue
+		var item: Resource = load(path)
+		var model_path: String = item.get("model_path") if item.get("model_path") else ""
+		var model_scale: float = item.get("model_scale") if item.get("model_scale") != null else 1.0
+		if model_path != "" and ResourceLoader.exists(model_path):
+			# Keep the largest scale if multiple items share a model
+			if not unique_models.has(model_path) or model_scale > unique_models[model_path]:
+				unique_models[model_path] = model_scale
+
+	if unique_models.is_empty():
+		return
+
+	# Temporary SubViewport for rendering model icons
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(128, 128)
+	viewport.transparent_bg = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	viewport.own_world_3d = true
+	add_child(viewport)
+
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 2.5
+	cam.position = Vector3(1.5, 2.0, 1.5)
+	viewport.add_child(cam)
+	cam.look_at(Vector3(0.0, 0.5, 0.0), Vector3.UP)
+
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-45.0, 45.0, 0.0)
+	light.light_energy = 1.5
+	viewport.add_child(light)
+
+	var env_node := WorldEnvironment.new()
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color(0.0, 0.0, 0.0, 0.0)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(0.7, 0.7, 0.7)
+	environment.ambient_light_energy = 0.8
+	env_node.environment = environment
+	viewport.add_child(env_node)
+
+	# Wall (model_scale=1.8) looks correct at cam size 2.5.
+	# Scale other models relative to the wall so they fill the frame similarly.
+	var reference_scale := 1.8
+
+	for model_path in unique_models:
+		var render_scale: float = unique_models[model_path]
+		var scene: PackedScene = load(model_path)
+		var inst := scene.instantiate()
+		# Scale the model so it fills the viewport like the wall does
+		var scale_factor := render_scale / reference_scale
+		inst.scale = Vector3.ONE * scale_factor
+		viewport.add_child(inst)
+
+		# Wait 2 frames for the viewport to render the model
+		await get_tree().process_frame
+		await get_tree().process_frame
+
+		var img := viewport.get_texture().get_image()
+		_icon_cache[model_path] = ImageTexture.create_from_image(img)
+
+		viewport.remove_child(inst)
+		inst.queue_free()
+
+	viewport.queue_free()
+
 func _build_round_manager() -> void:
 	_round_manager = load("res://systems/RoundManager.gd").new()
 	_round_manager.player_worlds = _player_worlds
@@ -184,6 +396,7 @@ func _build_round_manager() -> void:
 		var shop: CanvasLayer = load("res://scenes/game/ShopUI.gd").new()
 		shop.player_index = i
 		shop.player_world = _player_worlds[i]
+		shop.icon_cache = _icon_cache
 		# P1 shop on left edge, P2 shop on right edge
 		shop.viewport_top = STATUS_BAR_HEIGHT
 		shop.viewport_left = 0 if i == 0 else (1920 - 360)
