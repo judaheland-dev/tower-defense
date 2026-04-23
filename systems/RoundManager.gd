@@ -18,6 +18,8 @@ var _play_time_remaining: float = 0.0
 var _player_cleared_time: Array[float] = [0.0, 0.0]
 var _player_mobs_cleared: Array[bool] = [false, false]
 var _player_ready: Array[bool] = [false, false]
+# How many mobs were spawned on each field this round (must be > 0 to count as clearable)
+var _mobs_spawned_on_field: Array[int] = [0, 0]
 
 func _ready() -> void:
 	GameManager.state_changed.connect(_on_state_changed)
@@ -33,9 +35,10 @@ func _process(delta: float) -> void:
 
 		GameManager.GameState.PLAY:
 			_play_time_remaining -= delta
-			_check_play_end()
 			if _play_time_remaining <= 0.0:
 				_end_play()
+			else:
+				_check_play_end()
 
 		GameManager.GameState.ROUND_OVER:
 			_phase_timer -= delta
@@ -48,6 +51,7 @@ func _begin_prep() -> void:
 	GameManager.round_number += 1
 	_player_cleared_time = [0.0, 0.0]
 	_player_mobs_cleared = [false, false]
+	_mobs_spawned_on_field = [0, 0]
 	_player_ready = [false, false]
 	# AI is always ready in PVE mode
 	if GameManager.current_mode == GameManager.GameMode.PVE:
@@ -85,27 +89,28 @@ func _spawn_queued_mobs() -> void:
 		var queued: Array = attacker_world.call("get_queued_mobs")
 		for mob_data in queued:
 			defender_world.call("spawn_mob", mob_data)
+			_mobs_spawned_on_field[defender_index] += 1
 		attacker_world.call("clear_queued_mobs")
 
 func _check_play_end() -> void:
 	for i in player_worlds.size():
-		if not _player_mobs_cleared[i]:
+		if not _player_mobs_cleared[i] and _mobs_spawned_on_field[i] > 0:
 			var count: int = player_worlds[i].call("get_active_mob_count")
 			if count == 0:
 				_player_mobs_cleared[i] = true
 				_player_cleared_time[i] = _play_time_remaining
 
-	# End early if all sides are clear
+	# End early only when every field that had mobs is now clear
 	var all_clear := true
-	for cleared in _player_mobs_cleared:
-		if not cleared:
+	for i in player_worlds.size():
+		if _mobs_spawned_on_field[i] > 0 and not _player_mobs_cleared[i]:
 			all_clear = false
 			break
 	if all_clear:
 		_end_play()
 
 func _end_play() -> void:
-	if GameManager.current_state == GameManager.GameState.GAME_OVER:
+	if GameManager.current_state != GameManager.GameState.PLAY:
 		return
 
 	# Award income
@@ -125,6 +130,9 @@ func _on_state_changed(new_state: GameManager.GameState) -> void:
 
 func get_prep_timer() -> float:
 	return _phase_timer
+
+func get_play_timer() -> float:
+	return _play_time_remaining
 
 func toggle_ready(player_index: int) -> void:
 	if GameManager.current_state != GameManager.GameState.PREP:

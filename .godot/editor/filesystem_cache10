@@ -1,18 +1,25 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1776869006
+::res://::1776909214
 AGENTS.md::TextFile::-1::1776868311::0::1::::<><><>0<>0<><>::
 export_presets.cfg::TextFile::-1::1776868311::0::1::::<><><>0<>0<><>::
 ::res://assets/::1776867719
-::res://assets/audio/::1776867719
+::res://assets/audio/::1776909296
+sfx_cannon.ogg::AudioStreamOggVorbis::4144933905337511316::1776909296::1776909335::1::::<><><>0<>0<>4084ff8cca6690bed4cb7213ae721ef0<>res://.godot/imported/sfx_cannon.ogg-e2b94b6b846e480cbf1e4dc1ed60c71e.oggvorbisstr::
+sfx_click.ogg::AudioStreamOggVorbis::6252469764670615916::1776909296::1776909335::1::::<><><>0<>0<>2b663e25f86c1ead61cfb742811286f8<>res://.godot/imported/sfx_click.ogg-b12bb53d2b0a91f15cdf40566eea0b68.oggvorbisstr::
+sfx_death.ogg::AudioStreamOggVorbis::5256912417418121221::1776909296::1776909335::1::::<><><>0<>0<>dd6cff604c4a6542d7372c5bc11125ec<>res://.godot/imported/sfx_death.ogg-5e255ec5112be4dfab5d1cd8050b0314.oggvorbisstr::
+sfx_explosion.ogg::AudioStreamOggVorbis::7020454675826964057::1776909296::1776909335::1::::<><><>0<>0<>e7669913e7396dca983699992438f0bd<>res://.godot/imported/sfx_explosion.ogg-025ff86ceb58db11e1455db69e47cd61.oggvorbisstr::
+sfx_impact.ogg::AudioStreamOggVorbis::2347799817610605850::1776909296::1776909335::1::::<><><>0<>0<>a1350fb86b9a4d5fadd8aa5b53886661<>res://.godot/imported/sfx_impact.ogg-bde006d51b572105a5b0b7a485bd1045.oggvorbisstr::
+sfx_place.ogg::AudioStreamOggVorbis::7071403959103198377::1776909296::1776909335::1::::<><><>0<>0<>ad01fbe0513f7bbc2627ef38255d60b0<>res://.godot/imported/sfx_place.ogg-f308b5d2065b44eed581b4a4b389f7ad.oggvorbisstr::
+sfx_shoot.ogg::AudioStreamOggVorbis::3639019946971858174::1776909296::1776909335::1::::<><><>0<>0<>615eeb34fb7205d766e75e83866b05a1<>res://.godot/imported/sfx_shoot.ogg-1eed8d25113100e128d5029e44ca338b.oggvorbisstr::
 ::res://assets/fonts/::1776867719
 ::res://assets/models/::1776868420
-::res://assets/models/mini-dungeon/::1776868420
+::res://assets/models/mini-dungeon/::1776869006
 License.txt::TextFile::-1::1776868420::0::1::::<><><>0<>0<><>::
 Preview (Variation A).png::CompressedTexture2D::2265186088838844347::1776868420::1776869006::1::::<><><>0<>0<>6505d175908a2a01c808ba72abb27d29<>res://.godot/imported/Preview (Variation A).png-f816359e856040bcf1ec4216f026f6ca.ctex::
 Preview.png::CompressedTexture2D::6490065777016815100::1776868420::1776869006::1::::<><><>0<>0<>51224b29f71104391c034486a905fc0f<>res://.godot/imported/Preview.png-f75cc1755cb834b7ce453334e9dda473.ctex::
 Sample.png::CompressedTexture2D::3245114376039811024::1776868420::1776869006::1::::<><><>0<>0<>300cc85da36ae396f0afdc7d64f9c129<>res://.godot/imported/Sample.png-9f5fd7d1cf58765a765fbdfaf4f74058.ctex::
 ::res://assets/models/mini-dungeon/Models/::1776868420
-::res://assets/models/mini-dungeon/Models/FBX format/::1776868420
+::res://assets/models/mini-dungeon/Models/FBX format/::1776869018
 banner.fbx::PackedScene::5001830687009931860::1776868420::1776869017::1::::<><><>0<>0<>09bfa90f99e9de81567aa10ac2f670c7<>res://.godot/imported/banner.fbx-0f00e45db63d88e701d4702244f81a83.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
 barrel.fbx::PackedScene::2434460204132889662::1776868420::1776869017::1::::<><><>0<>0<>1bb6af2ed752a3be5310b463e7e4d4d0<>res://.godot/imported/barrel.fbx-e1de56340a719237f6a57315fc507635.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
 character-human.fbx::PackedScene::6441887361979832759::1776868420::1776869017::1::::<><><>0<>0<>ff8929f4df67a540891c7665d5d60fcb<>res://.godot/imported/character-human.fbx-3cf3af218d0158fc656c083b700f06fa.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
@@ -38,9 +45,9 @@ weapon-spear.fbx::PackedScene::2162514640462858269::1776868420::1776869018::1:::
 weapon-sword.fbx::PackedScene::95346280643237666::1776868420::1776869018::1::::<><><>0<>0<>2c8cb3b9d9aaa22dc7ee019d855133fc<>res://.godot/imported/weapon-sword.fbx-2b3363cd3edddd1aad0cc41b97c3b060.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
 wood-structure.fbx::PackedScene::4184599983185033361::1776868420::1776869018::1::::<><><>0<>0<>971f316bccfe016ca94d0197ec17204c<>res://.godot/imported/wood-structure.fbx-58e36235c6492ad81c8cb56b162ec7a9.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
 wood-support.fbx::PackedScene::20671169681547716::1776868420::1776869018::1::::<><><>0<>0<>034f682f6b844fd147502302e9c34f1d<>res://.godot/imported/wood-support.fbx-720a39f9611bc3e850ed1bf19087cd31.scn::uid://3xp0cynh70vu::::res://assets/models/mini-dungeon/Models/FBX format/Textures/colormap.png
-::res://assets/models/mini-dungeon/Models/FBX format/Textures/::1776868420
+::res://assets/models/mini-dungeon/Models/FBX format/Textures/::1776869023
 colormap.png::CompressedTexture2D::2013723852670709458::1776868420::1776869023::1::::<><><>0<>0<>7265c0a5b28db23932e9fd66a5880bf3<>res://.godot/imported/colormap.png-13b6dba0b9c9000fa915e248694f704b.s3tc.ctex::
-::res://assets/models/mini-dungeon/Models/GLB format/::1776868420
+::res://assets/models/mini-dungeon/Models/GLB format/::1776869018
 banner.glb::PackedScene::234953408837168408::1776868420::1776869018::1::::<><><>0<>0<>a3e391c718c1644f52e7bcc92476a90a<>res://.godot/imported/banner.glb-753847a4bce9105841663cf450f5cac8.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
 barrel.glb::PackedScene::1606732512516018222::1776868420::1776869014::1::::<><><>0<>0<>46f723d27ab7a4587721c1af3b262610<>res://.godot/imported/barrel.glb-733212f6ae73eeb94d375a0d93d5caa4.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
 character-human.glb::PackedScene::3436506643097837794::1776868420::1776869014::1::::<><><>0<>0<>aefacef44937ac7ad8d30ef06b635c45<>res://.godot/imported/character-human.glb-23b20df20aebcd2a74f23308f340dbc9.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
@@ -66,9 +73,9 @@ weapon-spear.glb::PackedScene::7266289975334641905::1776868420::1776869016::1:::
 weapon-sword.glb::PackedScene::7885042033626206778::1776868420::1776869016::1::::<><><>0<>0<>2f2689abd872013afe7c672e3d478b00<>res://.godot/imported/weapon-sword.glb-531de134e9beb4b3d849c115fd2fb371.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
 wood-structure.glb::PackedScene::6323413609194654832::1776868420::1776869016::1::::<><><>0<>0<>7375783728c966bcab791c08428e137d<>res://.godot/imported/wood-structure.glb-beeae39e0a10cf3c008a41fb90041354.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
 wood-support.glb::PackedScene::1316314983356559174::1776868420::1776869016::1::::<><><>0<>0<>ec7ca6b1f57dc545af2f1ddae1d5f7bf<>res://.godot/imported/wood-support.glb-be3066dd2f0a0cd5316957bcfa7909af.scn::uid://6cblp2j5ummg::::res://assets/models/mini-dungeon/Models/GLB format/Textures/colormap.png
-::res://assets/models/mini-dungeon/Models/GLB format/Textures/::1776868420
+::res://assets/models/mini-dungeon/Models/GLB format/Textures/::1776869023
 colormap.png::CompressedTexture2D::2180064099022624430::1776868420::1776869023::1::::<><><>0<>0<>a55254508394e1b7ef2891e8cfb50268<>res://.godot/imported/colormap.png-6b56ca1058f72a748e86d354a7b40b81.s3tc.ctex::
-::res://assets/models/mini-dungeon/Models/OBJ format/::1776868420
+::res://assets/models/mini-dungeon/Models/OBJ format/::1776869007
 banner.obj::Mesh::137277186215099765::1776868420::1776869007::1::::<><><>0<>0<>f08ed0256e0a62426b47e4a30ba5dd9b<>res://.godot/imported/banner.obj-1f39cf42bb4fb2c182ccad986515fc9d.mesh<*>res://.godot/imported/banner.obj-1f39cf42bb4fb2c182ccad986515fc9d.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
 barrel.obj::Mesh::6685501920071993895::1776868420::1776869007::1::::<><><>0<>0<>f1cf7ef1f056c04a230ea8af6a6e214e<>res://.godot/imported/barrel.obj-46428bb8786b027649e3462ef30e101c.mesh<*>res://.godot/imported/barrel.obj-46428bb8786b027649e3462ef30e101c.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
 character-human.obj::Mesh::8850805133824217037::1776868420::1776869007::1::::<><><>0<>0<>11865d964d2fc5d73b3881f247ea1128<>res://.godot/imported/character-human.obj-6ea2a9c169c2843a4a8bcab7ce8f10b6.mesh<*>res://.godot/imported/character-human.obj-6ea2a9c169c2843a4a8bcab7ce8f10b6.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
@@ -94,11 +101,11 @@ weapon-spear.obj::Mesh::4750342018194178128::1776868420::1776869007::1::::<><><>
 weapon-sword.obj::Mesh::133793826372241508::1776868420::1776869007::1::::<><><>0<>0<>bd0cf9043b3fe2e15a6d15d8bff68a93<>res://.godot/imported/weapon-sword.obj-9168f5227a4bec7a97cc350670cb74f0.mesh<*>res://.godot/imported/weapon-sword.obj-9168f5227a4bec7a97cc350670cb74f0.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
 wood-structure.obj::Mesh::1396615225688707466::1776868420::1776869007::1::::<><><>0<>0<>cf47057eda03806a8b8497bcc0abed4e<>res://.godot/imported/wood-structure.obj-4a609e4e03c5a2974ce308f1000ebd76.mesh<*>res://.godot/imported/wood-structure.obj-4a609e4e03c5a2974ce308f1000ebd76.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
 wood-support.obj::Mesh::3420650567945395140::1776868420::1776869007::1::::<><><>0<>0<>528c1abe19cca4fa98130c17b9e11fdb<>res://.godot/imported/wood-support.obj-65a956ddf0957854e2bddcd5e4851cad.mesh<*>res://.godot/imported/wood-support.obj-65a956ddf0957854e2bddcd5e4851cad.mesh::uid://byyffw5fhgytt::::res://assets/models/mini-dungeon/Models/OBJ format/Textures/colormap.png
-::res://assets/models/mini-dungeon/Models/OBJ format/Textures/::1776868420
+::res://assets/models/mini-dungeon/Models/OBJ format/Textures/::1776869023
 colormap.png::CompressedTexture2D::4120811713131301049::1776868420::1776869023::1::::<><><>0<>0<>0d852d81832afd864f00f805c4bbf9ae<>res://.godot/imported/colormap.png-08da6e36593600a4fa0219a1acb68a10.s3tc.ctex::
-::res://assets/models/mini-dungeon/Models/Textures/::1776868420
+::res://assets/models/mini-dungeon/Models/Textures/::1776869006
 variation-a.png::CompressedTexture2D::1464808993061294780::1776868420::1776869006::1::::<><><>0<>0<>321aed3dbca848ed7ec6e7d6c4db66fa<>res://.godot/imported/variation-a.png-6c5bbf7fd39c8a4ec1097f5d6cf63cc1.ctex::
-::res://assets/models/mini-dungeon/Previews/::1776868420
+::res://assets/models/mini-dungeon/Previews/::1776869006
 banner.png::CompressedTexture2D::2745800314487538418::1776868420::1776869006::1::::<><><>0<>0<>ca4b5d873f1bd7e3447180a9e5ac80c7<>res://.godot/imported/banner.png-6bc9f230413975b254f0930492b676dd.ctex::
 barrel.png::CompressedTexture2D::5648398871919373093::1776868420::1776869006::1::::<><><>0<>0<>db3fa9f66c87edef59c91eb8aca633cc<>res://.godot/imported/barrel.png-bf823a6e400d8134aaf5ee06866682dd.ctex::
 character-human.png::CompressedTexture2D::583377221762099361::1776868420::1776869006::1::::<><><>0<>0<>ce6d850f2d550cbf18901a246fc9b298<>res://.godot/imported/character-human.png-be852db8a52be25c0fe34f083bf584b3.ctex::
@@ -124,7 +131,7 @@ weapon-spear.png::CompressedTexture2D::7723725905142795149::1776868420::17768690
 weapon-sword.png::CompressedTexture2D::7609593169856978316::1776868420::1776869006::1::::<><><>0<>0<>18ad93753a2af8cfcbebaea36309cc89<>res://.godot/imported/weapon-sword.png-8ac53534bdd5d790184b79a9bb87d313.ctex::
 wood-structure.png::CompressedTexture2D::2861581802724039146::1776868420::1776869006::1::::<><><>0<>0<>01b24c458d4ce4a24b10b5dc51263cd2<>res://.godot/imported/wood-structure.png-4b7850f196aa2d21da26db83f6cb214c.ctex::
 wood-support.png::CompressedTexture2D::7743266302223261868::1776868420::1776869006::1::::<><><>0<>0<>bf246330d8c46e1e82b0ce756a7a824d<>res://.godot/imported/wood-support.png-cb600a7b7129d67678272ce34255fcaa.ctex::
-::res://assets/models/tower-defense-kit/::1776868420
+::res://assets/models/tower-defense-kit/::1776869021
 detail-crystal-large.glb::PackedScene::4471774146209802721::1776868420::1776869016::1::::<><><>0<>0<>f02e5a9bb6d1d9109762db20c977b0e2<>res://.godot/imported/detail-crystal-large.glb-ae419aa0d17528de2564111a234ca811.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
 detail-crystal.glb::PackedScene::7166464074581862088::1776868420::1776869016::1::::<><><>0<>0<>8f486c5a5b8ef7cdd303011563cbe655<>res://.godot/imported/detail-crystal.glb-5f6030e71d00f12e380b2445cd781900.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
 detail-dirt-large.glb::PackedScene::1492006514381747231::1776868420::1776869020::1::::<><><>0<>0<>8fed3c476f02c15cf5dd0f0f91225c27<>res://.godot/imported/detail-dirt-large.glb-43a80283c249f2374ede7699d5531897.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
@@ -285,39 +292,40 @@ wood-structure-high-part.glb::PackedScene::7612019531536422726::1776868420::1776
 wood-structure-high.glb::PackedScene::2711707589160264850::1776868420::1776869012::1::::<><><>0<>0<>b4868da7bdaa5887572e239c7996cb4b<>res://.godot/imported/wood-structure-high.glb-0bc7064d44bc2b98d6f4d5799660eb4e.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
 wood-structure-part.glb::PackedScene::4139295267763998326::1776868420::1776869012::1::::<><><>0<>0<>032d483bf9769ff523f5ec2e0e1d5d0f<>res://.godot/imported/wood-structure-part.glb-7c09c937889fc65ecc3f7373c056c027.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
 wood-structure.glb::PackedScene::5666454171260214893::1776868420::1776869012::1::::<><><>0<>0<>38c5835e8bec8812b15221e2d976a300<>res://.godot/imported/wood-structure.glb-13503c33e306511d94b98a909f66d7fa.scn::uid://y6jw6hqcocei::::res://assets/models/tower-defense-kit/Textures/colormap.png
-::res://assets/models/tower-defense-kit/textures/::1776868420
+::res://assets/models/tower-defense-kit/textures/::1776869023
 colormap.png::CompressedTexture2D::1749115337857113704::1776868420::1776869023::1::::<><><>0<>0<>9dd178a6648fc802f21bf378224f4ea2<>res://.godot/imported/colormap.png-997954ce03113d351058d45825b84120.s3tc.ctex::
-::res://autoloads/::1776867878
-AudioManager.gd::GDScript::6738263146358422848::1776868311::0::1::::<>Node<><>0<>0<><>::
+::res://autoloads/::1776869006
+AudioManager.gd::GDScript::6738263146358422848::1776904574::0::1::::<>Node<><>0<>0<><>::
 EconomyManager.gd::GDScript::8002258511877461950::1776868311::0::1::::<>Node<><>0<>0<><>::
-GameManager.gd::GDScript::2120988031711409882::1776868311::0::1::::<>Node<><>0<>0<><>::
+GameManager.gd::GDScript::2120988031711409882::1776904348::0::1::::<>Node<><>0<>0<><>::
 InputManager.gd::GDScript::1874430017414819307::1776868311::0::1::::<>Node<><>0<>0<><>::
-::res://resources/::1776867904
+::res://resources/::1776869006
 MobData.gd::GDScript::7696626644409337246::1776868311::0::1::::MobData<>Resource<><>0<>0<><>::
 TowerData.gd::GDScript::7903362301596365248::1776868311::0::1::::TowerData<>Resource<><>0<>0<><>::
 ::res://resources/mobs/::1776867949
-mob_armored.tres::Resource/MobData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
-mob_basic.tres::Resource/MobData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
-mob_fast.tres::Resource/MobData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
-mob_healer.tres::Resource/MobData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
+mob_armored.tres::Resource/MobData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
+mob_basic.tres::Resource/MobData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
+mob_fast.tres::Resource/MobData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
+mob_healer.tres::Resource/MobData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/MobData.gd
 ::res://resources/towers/::1776867925
-tower_arrow.tres::Resource/TowerData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
-tower_cannon.tres::Resource/TowerData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
-tower_slow.tres::Resource/TowerData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
-wall_basic.tres::Resource/TowerData::-1::1776868986::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
+tower_arrow.tres::Resource/TowerData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
+tower_cannon.tres::Resource/TowerData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
+tower_slow.tres::Resource/TowerData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
+wall_basic.tres::Resource/TowerData::-1::1776906578::0::1::::<><><>0<>0<><>::res://resources/TowerData.gd
 ::res://resources/upgrades/::1776867719
 ::res://scenes/::1776867719
-::res://scenes/game/::1776868205
-Game.gd::GDScript::4393251362843325193::1776868311::0::1::::<>Node<><>0<>0<><>::
+::res://scenes/game/::1776898009
+Game.gd::GDScript::4393251362843325193::1776909123::0::1::::<>Node<><>0<>0<><>::
 Game.tscn::PackedScene::-1::1776868311::0::1::::<><><>0<>0<><>::res://scenes/game/Game.gd
-MobNode.gd::GDScript::995856471245466094::1776868311::0::1::::<>CharacterBody3D<><>0<>0<><>::
-PlayerWorld.gd::GDScript::9151179286976573443::1776868311::0::1::::<>Node3D<><>0<>0<><>::
-ShopUI.gd::GDScript::1283785462876241648::1776868311::0::1::::<>CanvasLayer<><>0<>0<><>::
-TowerNode.gd::GDScript::3149456824920209718::1776868311::0::1::::<>Node3D<><>0<>0<><>::
-::res://scenes/main_menu/::1776867974
+MobNode.gd::GDScript::995856471245466094::1776905175::0::1::::<>CharacterBody3D<><>0<>0<><>::
+PlayerWorld.gd::GDScript::9151179286976573443::1776909282::0::1::::<>Node3D<><>0<>0<><>::
+ProjectileNode.gd::GDScript::7860637278217077932::1776901742::0::1::::<>Node3D<><>0<>0<><>::
+ShopUI.gd::GDScript::1283785462876241648::1776909140::0::1::::<>CanvasLayer<><>0<>0<><>::
+TowerNode.gd::GDScript::3149456824920209718::1776909282::0::1::::<>Node3D<><>0<>0<><>::
+::res://scenes/main_menu/::1776869006
 MainMenu.gd::GDScript::7308278877299541524::1776868311::0::1::::<>Node<><>0<>0<><>::
 MainMenu.tscn::PackedScene::-1::1776868311::0::1::::<><><>0<>0<><>::res://scenes/main_menu/MainMenu.gd
-::res://systems/::1776868228
+::res://systems/::1776869006
 PathfindingController.gd::GDScript::4323078821207543860::1776868311::0::1::::<>Node<><>0<>0<><>::
-RoundManager.gd::GDScript::7841500811928623689::1776868311::0::1::::<>Node<><>0<>0<><>::
+RoundManager.gd::GDScript::7841500811928623689::1776905175::0::1::::<>Node<><>0<>0<><>::
 SimpleAI.gd::GDScript::890793640503065860::1776868311::0::1::::<>Node<><>0<>0<><>::

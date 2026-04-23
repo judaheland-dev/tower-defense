@@ -84,7 +84,7 @@ func _place_towers(budget: int, round_num: int) -> void:
 	if _tower_items.is_empty() or player_world == null:
 		return
 
-	var grid_cols: int = player_world.get("GRID_COLS") if player_world.get("GRID_COLS") != null else 18
+	var grid_cols: int = player_world.get("GRID_COLS") if player_world.get("GRID_COLS") != null else 11
 	var grid_rows: int = player_world.get("GRID_ROWS") if player_world.get("GRID_ROWS") != null else 14
 
 	var attempts := 0

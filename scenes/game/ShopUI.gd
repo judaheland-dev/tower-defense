@@ -4,12 +4,12 @@ extends CanvasLayer
 ## Displays purchasable towers and mobs; connects to the PlayerWorld.
 
 const PANEL_WIDTH: int = 360
-const VIEWPORT_WIDTH: int = 1920
 const ITEM_HEIGHT: int = 72
 
 var player_index: int = 0
 var player_world: Node = null
-var viewport_top: int = 0  # set by Game.gd; y-offset of this player's viewport in screen space
+var viewport_top: int = 0   # y-offset of this player's HUD strip in screen space
+var viewport_left: int = 0  # x-offset of this player's viewport in screen space
 
 var _panel: PanelContainer = null
 var _item_list: VBoxContainer = null
@@ -61,10 +61,10 @@ func _build_ui() -> void:
 
 	_panel = PanelContainer.new()
 	_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 600)
-	# P1 panel: right side of top viewport; P2 panel: right side of bottom viewport
+	# P1 panel on left edge, P2 panel on right edge
 	_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_panel.offset_left = VIEWPORT_WIDTH - PANEL_WIDTH
-	_panel.offset_right = VIEWPORT_WIDTH
+	_panel.offset_left = viewport_left
+	_panel.offset_right = viewport_left + PANEL_WIDTH
 	_panel.offset_top = viewport_top + 48
 	_panel.offset_bottom = viewport_top + 48 + 470
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP

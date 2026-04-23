@@ -22,30 +22,35 @@ assets/
 
 ## Game Overview
 
-Two-player PVP (or PVE vs AI) tower defense. Each round has two phases:
-- **PREP phase** (~60s): both players simultaneously place walls/towers on their own grid and purchase mobs to send at the opponent.
-- **PLAY phase** (~90s or until clear): purchased mobs spawn on the opponent's field and navigate the maze to the base exit. Towers auto-attack. Mobs that reach the exit deal HP damage to that player.
+Two-player PVP (or PVE vs AI) tower defense on a single shared board. Each round has two phases:
+- **PREP phase** (~60s): both players simultaneously place walls/towers on their own half and purchase mobs to send at the opponent.
+- **PLAY phase** (~90s or until clear): purchased mobs spawn at the center divider on the opponent's half and navigate the maze toward the opponent's base (outer edge). Towers auto-attack. Mobs that reach the exit deal HP damage to that player.
 
 Round ends -> income is distributed -> next PREP phase. Player HP <= 0 = game over.
 
 ## Screen Layout
 
-1920x1080 viewport split horizontally:
-- Top 512px: P1 SubViewport + P1 HUD strip (CanvasLayer layer=1)
-- Center 56px: shared status bar (CanvasLayer layer=10) - timer, phase, income
-- Bottom 512px: P2 SubViewport + P2 HUD strip (CanvasLayer layer=2)
+1920x1080 single viewport, no split screen:
+- Top 28px: shared status bar (CanvasLayer layer=10) - timer, phase, round
+- Full screen: single orthographic Camera3D (south-facing isometric, size=30) rendering the shared board
+- Bottom-left 960x48: P1 HUD strip (CanvasLayer layer=1) - HP, coins, selected item
+- Bottom-right 960x48: P2 HUD strip (CanvasLayer layer=2) - HP, coins, selected item
+- P1 shop panel: left edge (CanvasLayer layer=15)
+- P2 shop panel: right edge (CanvasLayer layer=16)
 
-Each SubViewport has its own Camera3D (orthographic, isometric: position=(10,14,10), look_at origin, size=18).
+Camera position: (22, 24, 26), looking at (22, 0, 0). ~80-85px per tile.
 
 ## Grid & Coordinate System
 
-- Each player's field: 18 columns x 14 rows of GridMap cells
-- Grid origin is at world (0,0,0) — column 0-17 in X, row 0-13 in Z
-- GridMap cell size: 2x1x2 (X, Y, Z) units — tiles are flat with 1-unit height slot
-- Spawn point: column 9, row 0 (north edge center)
-- Base exit: column 9, row 13 (south edge center)
-- Walls/towers occupy cells; mobs navigate across the grid surface
-- Navigation mesh is baked after every grid change; placement is rejected if it blocks ALL paths
+- Shared board: P1 left half (11 cols x 14 rows) + P2 right half (11 cols x 14 rows) = 22 cols x 14 rows total
+- Each player's grid uses local coords: column 0-10 in X, row 0-13 in Z
+- P1 (LEFT) world origin at X=0, P2 (RIGHT) world origin at X=22 (11*2 units)
+- Cell size: 2x1x2 (X, Y, Z) units -- tiles are flat with 1-unit height slot
+- Mobs travel horizontally: spawn at center edge, exit at outer edge
+  - P1: spawn at right edge (col 10+), base/exit at left edge (col 0-)
+  - P2: spawn at left edge (col 0-), base/exit at right edge (col 10+)
+- Each half has its own NavigationRegion3D; placement is rejected if it blocks ALL paths
+- Players can only build on their own half
 
 ## Critical GDScript Rules
 
@@ -62,7 +67,7 @@ Each SubViewport has its own Camera3D (orthographic, isometric: position=(10,14,
 - **Calling methods on a statically-typed CanvasLayer variable will fail** if the method is defined in a script attached at runtime. Use `.call("method_name", args)` instead.
 - **`ColorRect` backgrounds block mouse events** (`MOUSE_FILTER_STOP`). Purely-visual backgrounds behind buttons must use `bg.mouse_filter = Control.MOUSE_FILTER_IGNORE`.
 - **NavigationRegion3D baking is async.** Call `bake_navigation_mesh()` and await the `bake_finished` signal before querying paths.
-- **SubViewport input.** Mouse/touch input is NOT forwarded to SubViewports by default. Use `SubViewportContainer` with `stretch=true` for correct input routing. Grid cursor is driven by keyboard/gamepad actions, not mouse.
+- **Shared board layout.** Both PlayerWorlds are siblings under a single Node3D. Each is offset in world X by `board_side * GRID_COLS * CELL_SIZE`. Collision layers 3/4 separate P1/P2 mobs in the shared World3D.
 
 ## CanvasLayer Render Order
 

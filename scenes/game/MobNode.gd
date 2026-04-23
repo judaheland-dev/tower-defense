@@ -43,7 +43,8 @@ func _ready() -> void:
 		_build_debuff_area()
 
 func _build_collision() -> void:
-	collision_layer = 3 if field_player_index == 0 else 4
+	# Layer 3 (P1 field mobs) = bitmask 4, layer 4 (P2 field mobs) = bitmask 8
+	collision_layer = 4 if field_player_index == 0 else 8
 	collision_mask = 1  # terrain/walls
 
 	var cshape := CollisionShape3D.new()
@@ -64,6 +65,7 @@ func _build_model() -> void:
 	mesh_inst.position = Vector3(0.0, 0.5, 0.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = _placeholder_color()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mesh_inst.set_surface_override_material(0, mat)
 	add_child(mesh_inst)
 
@@ -71,7 +73,19 @@ func _build_model() -> void:
 		var scene: PackedScene = load(data.model_path)
 		var inst := scene.instantiate()
 		inst.scale = Vector3.ONE * data.model_scale
+		# Rotate 180° so the model's front faces Godot's -Z (node forward direction)
+		inst.rotation_degrees.y = 180.0
 		add_child(inst)
+		if _has_mesh_instance(inst):
+			mesh_inst.visible = false
+
+func _has_mesh_instance(node: Node) -> bool:
+	if node is MeshInstance3D:
+		return true
+	for child in node.get_children():
+		if _has_mesh_instance(child):
+			return true
+	return false
 
 func _placeholder_color() -> Color:
 	if data.is_flying:        return Color(0.6, 0.4, 0.9)
@@ -90,7 +104,8 @@ func _build_nav_agent() -> void:
 func _build_aura_area() -> void:
 	_aura_area = Area3D.new()
 	_aura_area.collision_layer = 0
-	_aura_area.collision_mask = 3 if field_player_index == 0 else 4
+	# Detect other mobs on the same field: layer 3 = mask 4, layer 4 = mask 8
+	_aura_area.collision_mask = 4 if field_player_index == 0 else 8
 
 	var cshape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
@@ -133,9 +148,7 @@ func _physics_process(delta: float) -> void:
 	# Reached exit check: nav agent finished OR mob is physically close to exit
 	var at_exit := global_position.distance_to(exit_position) < 1.5
 	if ((_nav_agent.is_navigation_finished() and _distance_traveled > 1.0) or at_exit):
-		var sfx := "res://assets/audio/sfx_impact.ogg"
-		if ResourceLoader.exists(sfx):
-			AudioManager.play_sfx(load(sfx), -2.0)
+		AudioManager.play_sfx_path("res://assets/audio/sfx_impact.ogg", -2.0)
 		reached_exit.emit(self)
 		queue_free()
 		return
@@ -180,9 +193,7 @@ func take_damage(amount: float) -> void:
 	var actual := maxf(amount - (data.armor + _armor_buff), 1.0)
 	_current_hp -= actual
 	if _current_hp <= 0.0:
-		var sfx := "res://assets/audio/sfx_death.ogg"
-		if ResourceLoader.exists(sfx):
-			AudioManager.play_sfx(load(sfx), -8.0)
+		AudioManager.play_sfx_path("res://assets/audio/sfx_death.ogg", -8.0)
 		died.emit(self)
 		queue_free()
 

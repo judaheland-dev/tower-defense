@@ -1,8 +1,3 @@
-res://autoloads/GameManager.gd
 res://scenes/game/PlayerWorld.gd
-res://scenes/game/Game.gd
-res://scenes/game/ShopUI.gd
 res://scenes/game/MobNode.gd
-res://systems/RoundManager.gd
-res://scenes/game/TowerNode.gd
-res://scenes/game/ProjectileNode.gd
+res://scenes/game/Game.gd

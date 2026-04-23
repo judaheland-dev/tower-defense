@@ -20,19 +20,21 @@ func _ready() -> void:
 		return
 	_current_hp = data.max_health
 	_build_model()
+	_build_collision_body()
 	if data.tower_type != TowerData.TowerType.WALL:
 		_build_detection_area()
 	if data.tower_type == TowerData.TowerType.SLOW:
 		_build_slow_area()
 
 func _build_model() -> void:
-	# Always add a placeholder box - visible as fallback if GLB fails or is invisible
+	# Always add a placeholder box
 	var mesh_inst := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(1.6, 1.2 if data.tower_type != TowerData.TowerType.WALL else 1.8, 1.6)
 	mesh_inst.mesh = box
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = _placeholder_color()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mesh_inst.set_surface_override_material(0, mat)
 	mesh_inst.position = Vector3(0.0, box.size.y * 0.5, 0.0)
 	add_child(mesh_inst)
@@ -42,15 +44,18 @@ func _build_model() -> void:
 		var inst := scene.instantiate()
 		inst.scale = Vector3.ONE * data.model_scale
 		add_child(inst)
-		# Only hide placeholder once we confirm the GLB has visible mesh children
-		var has_mesh := false
-		for child in inst.get_children():
-			if child is MeshInstance3D or child.get_child_count() > 0:
-				has_mesh = true
-				break
-		if has_mesh:
-			mesh_inst.visible = false
+		if _has_mesh_instance(inst):
+			mesh_inst.visible = false  # GLB loaded with geometry - hide placeholder
 
+func _has_mesh_instance(node: Node) -> bool:
+	if node is MeshInstance3D:
+		return true
+	for child in node.get_children():
+		if _has_mesh_instance(child):
+			return true
+	return false
+
+func _build_collision_body() -> void:
 	# Collision body: layer 1 = terrain (blocks nav mesh), layer 2 = tower (mob targeting)
 	var body := StaticBody3D.new()
 	var cshape := CollisionShape3D.new()
@@ -73,8 +78,8 @@ func _placeholder_color() -> Color:
 func _build_detection_area() -> void:
 	_detection_area = Area3D.new()
 	_detection_area.collision_layer = 0
-	# Detect mob layer for this field: P1 field uses layer 3, P2 field uses layer 4
-	_detection_area.collision_mask = 3 if field_player_index == 0 else 4
+	# Layer 3 (P1 field mobs) = bitmask 4, layer 4 (P2 field mobs) = bitmask 8
+	_detection_area.collision_mask = 4 if field_player_index == 0 else 8
 
 	var cshape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
@@ -88,7 +93,8 @@ func _build_detection_area() -> void:
 func _build_slow_area() -> void:
 	_slow_area = Area3D.new()
 	_slow_area.collision_layer = 0
-	_slow_area.collision_mask = 3 if field_player_index == 0 else 4
+	# Layer 3 (P1 field mobs) = bitmask 4, layer 4 (P2 field mobs) = bitmask 8
+	_slow_area.collision_mask = 4 if field_player_index == 0 else 8
 
 	var cshape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
@@ -170,8 +176,7 @@ func _launch_projectile(target: Node, col: Color, spd_mult: float, splash: float
 	proj.global_position = global_position + Vector3(0.0, 1.2, 0.0)
 
 func _play_fire_sfx(path: String) -> void:
-	if ResourceLoader.exists(path):
-		AudioManager.play_sfx(load(path), -6.0)
+	AudioManager.play_sfx_path(path, -6.0)
 
 func _splash_attack(center: Vector3) -> void:
 	for m in _mobs_in_range:
@@ -210,13 +215,10 @@ func take_damage(amount: float) -> void:
 		_on_destroyed()
 
 func _on_destroyed() -> void:
-	# Notify parent world to free grid cell
 	var parent := get_parent()
 	if parent and parent.has_method("on_tower_destroyed"):
 		parent.call("on_tower_destroyed", self)
-	var sfx_path := "res://assets/audio/sfx_explosion.ogg"
-	if ResourceLoader.exists(sfx_path):
-		AudioManager.play_sfx(load(sfx_path), -3.0)
+	AudioManager.play_sfx_path("res://assets/audio/sfx_explosion.ogg", -3.0)
 	queue_free()
 
 func apply_attack_slow(amount: float) -> void:
