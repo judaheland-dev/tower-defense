@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"wall_basic"
+display_name = "Stone Wall"
+description = "A solid wall that blocks mob movement. Has hit points and can be destroyed by mobs that attack defenses."
+tower_type = 0
+cost = 20
+sell_value = 10
+range_units = 0.0
+damage = 0.0
+attack_speed = 0.0
+splash_radius = 0.0
+slow_amount = 0.0
+max_health = 150.0
+upgrade_ids = []
+model_path = "res://assets/models/tower-defense-kit/wood-structure.glb"
+model_scale = 1.0

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_arrow"
+display_name = "Arrow Tower"
+description = "Fires arrows at the nearest mob. Fast attack speed, moderate damage."
+tower_type = 1
+cost = 60
+sell_value = 30
+range_units = 5.0
+damage = 12.0
+attack_speed = 1.5
+splash_radius = 0.0
+slow_amount = 0.0
+max_health = 80.0
+upgrade_ids = [&"tower_arrow_2"]
+model_path = "res://assets/models/tower-defense-kit/weapon-ballista.glb"
+model_scale = 1.0

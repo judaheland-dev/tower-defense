@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_cannon"
+display_name = "Cannon Tower"
+description = "Fires explosive cannonballs that deal splash damage to nearby mobs. Slow attack speed."
+tower_type = 2
+cost = 100
+sell_value = 50
+range_units = 4.5
+damage = 35.0
+attack_speed = 0.5
+splash_radius = 1.5
+slow_amount = 0.0
+max_health = 120.0
+upgrade_ids = [&"tower_cannon_2"]
+model_path = "res://assets/models/tower-defense-kit/weapon-cannon.glb"
+model_scale = 1.0

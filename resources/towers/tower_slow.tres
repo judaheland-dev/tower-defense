@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_slow"
+display_name = "Frost Tower"
+description = "Emits a frost aura that slows all mobs within range. Does not deal damage."
+tower_type = 3
+cost = 80
+sell_value = 40
+range_units = 3.5
+damage = 0.0
+attack_speed = 0.0
+splash_radius = 3.5
+slow_amount = 0.4
+max_health = 60.0
+upgrade_ids = [&"tower_slow_2"]
+model_path = "res://assets/models/tower-defense-kit/tower-round-crystals.glb"
+model_scale = 1.0
