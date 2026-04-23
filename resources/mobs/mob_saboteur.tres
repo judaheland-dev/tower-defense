@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/MobData.gd" id="1_mobdata"]
+
+[resource]
+script = ExtResource("1_mobdata")
+id = &"mob_saboteur"
+display_name = "Saboteur"
+description = "Disrupts nearby towers, reducing their attack speed by 40%. Light armor."
+cost = 45
+max_health = 35.0
+move_speed = 3.5
+armor = 2.0
+base_damage = 1.0
+bounty = 10
+attacks_defenses = false
+is_flying = false
+heals_nearby_allies = false
+heal_rate = 0.0
+heal_radius = 2.0
+buffs_nearby_allies = false
+buff_speed_bonus = 0.0
+buff_armor_bonus = 0.0
+buff_radius = 2.0
+debuffs_nearby_towers = true
+debuff_attack_slow = 0.4
+debuff_radius = 3.0
+spawn_count = 1
+icon_color = Color(0.5, 0.2, 0.6, 1)
+model_path = "res://assets/models/mini-dungeon/Models/GLB format/character-human.glb"
+model_scale = 2.0

@@ -15,16 +15,28 @@ var _slow_area: Area3D = null  # for SLOW type towers
 # Applied debuffs from nearby mobs (fraction reduction to attack_speed)
 var _attack_slow_debuff: float = 0.0
 
+# Buff aura received from nearby BUFF towers
+var _damage_buff: float = 0.0
+var _attack_speed_buff: float = 0.0
+
+# Mortar ground indicator
+var _mortar_decal: MeshInstance3D = null
+
 func _ready() -> void:
 	if data == null:
 		return
 	_current_hp = data.max_health
 	_build_model()
 	_build_collision_body()
-	if data.tower_type != TowerData.TowerType.WALL:
+	var skip_detection := data.tower_type == TowerData.TowerType.WALL or data.tower_type == TowerData.TowerType.BUFF
+	if not skip_detection:
 		_build_detection_area()
 	if data.tower_type == TowerData.TowerType.SLOW:
 		_build_slow_area()
+	if data.tower_type == TowerData.TowerType.BUFF:
+		_build_buff_aura()
+	if data.tower_type == TowerData.TowerType.MORTAR:
+		_build_mortar_decal()
 
 func _build_model() -> void:
 	# Always add a placeholder box
@@ -73,6 +85,11 @@ func _placeholder_color() -> Color:
 		TowerData.TowerType.CANNON: return Color(0.3, 0.3, 0.7)
 		TowerData.TowerType.SLOW:   return Color(0.4, 0.8, 0.9)
 		TowerData.TowerType.SNIPER: return Color(0.9, 0.6, 0.1)
+		TowerData.TowerType.TESLA:  return Color(0.3, 0.5, 1.0)
+		TowerData.TowerType.MORTAR: return Color(0.6, 0.4, 0.2)
+		TowerData.TowerType.BUFF:   return Color(1.0, 0.85, 0.2)
+		TowerData.TowerType.POISON: return Color(0.2, 0.8, 0.2)
+		TowerData.TowerType.ANTI_AIR: return Color(0.8, 0.2, 0.2)
 	return Color.WHITE
 
 func _build_detection_area() -> void:
@@ -108,13 +125,23 @@ func _build_slow_area() -> void:
 # ---------- process ----------
 
 func _process(delta: float) -> void:
-	if data == null or data.tower_type == TowerData.TowerType.WALL:
+	if data == null or data.tower_type == TowerData.TowerType.WALL or data.tower_type == TowerData.TowerType.BUFF:
 		return
 	if GameManager.current_state != GameManager.GameState.PLAY:
 		return
 
+	# Update mortar ground indicator
+	if data.tower_type == TowerData.TowerType.MORTAR and _mortar_decal:
+		_pick_target()
+		if _target != null and is_instance_valid(_target):
+			var predicted := _predict_impact_pos(_target)
+			_mortar_decal.global_position = Vector3(predicted.x, 0.05, predicted.z)
+			_mortar_decal.visible = true
+		else:
+			_mortar_decal.visible = false
+
 	_attack_timer -= delta
-	var effective_speed := data.attack_speed * (1.0 - _attack_slow_debuff)
+	var effective_speed := data.attack_speed * (1.0 + _attack_speed_buff) * (1.0 - _attack_slow_debuff)
 	if effective_speed <= 0.0:
 		return
 
@@ -158,6 +185,20 @@ func _fire_at(target: Node) -> void:
 	elif data.tower_type == TowerData.TowerType.SLOW:
 		# Slow is applied via Area3D continuously; just fire a visual projectile
 		_launch_projectile(target, Color(0.3, 0.8, 1.0), 0.7, 0.0)
+	elif data.tower_type == TowerData.TowerType.TESLA:
+		_launch_projectile(target, Color(0.3, 0.6, 1.0), 1.3, 0.0)
+		_play_fire_sfx("res://assets/audio/sfx_shoot.ogg")
+	elif data.tower_type == TowerData.TowerType.MORTAR:
+		_launch_projectile(target, Color(0.7, 0.4, 0.1), 0.5, data.splash_radius)
+		_play_fire_sfx("res://assets/audio/sfx_cannon.ogg")
+		if _mortar_decal:
+			_mortar_decal.visible = false
+	elif data.tower_type == TowerData.TowerType.POISON:
+		_launch_projectile(target, Color(0.2, 0.9, 0.2), 0.9, 0.0)
+		_play_fire_sfx("res://assets/audio/sfx_shoot.ogg")
+	elif data.tower_type == TowerData.TowerType.ANTI_AIR:
+		_launch_projectile(target, Color(0.9, 0.2, 0.2), 1.2, 0.0)
+		_play_fire_sfx("res://assets/audio/sfx_shoot.ogg")
 	else:
 		# ARROW and others
 		_launch_projectile(target, Color(0.6, 0.9, 0.3), 1.1, 0.0)
@@ -165,13 +206,30 @@ func _fire_at(target: Node) -> void:
 
 func _launch_projectile(target: Node, col: Color, spd_mult: float, splash: float) -> void:
 	var proj: Node = load("res://scenes/game/ProjectileNode.gd").new()
-	proj.damage = data.damage
+	proj.damage = data.damage + _damage_buff
 	proj.splash_radius = splash
 	proj.field_player_index = field_player_index
 	proj.target = target
 	proj.speed = 14.0 * spd_mult
 	proj.color = col
 	proj.scale_factor = 1.0 if data.tower_type != TowerData.TowerType.CANNON else 1.6
+	# Chain lightning properties (Tesla)
+	if data.tower_type == TowerData.TowerType.TESLA:
+		proj.chain_count = data.chain_count
+		proj.chain_range = data.chain_range
+		proj.chain_damage_falloff = data.chain_damage_falloff
+	# DoT properties (Poison)
+	if data.tower_type == TowerData.TowerType.POISON:
+		proj.dot_damage = data.dot_damage
+		proj.dot_duration = data.dot_duration
+	# Mortar flag
+	if data.tower_type == TowerData.TowerType.MORTAR:
+		proj.is_mortar = true
+	# Anti-air damage multiplier
+	if data.tower_type == TowerData.TowerType.ANTI_AIR:
+		var mob_data: Variant = target.get("data") if target != null else null
+		if mob_data != null and mob_data.get("is_flying") == true:
+			proj.damage *= data.flying_damage_multiplier
 	get_parent().add_child(proj)
 	proj.global_position = global_position + Vector3(0.0, 1.2, 0.0)
 
@@ -226,3 +284,78 @@ func apply_attack_slow(amount: float) -> void:
 
 func remove_attack_slow(amount: float) -> void:
 	_attack_slow_debuff = maxf(_attack_slow_debuff - amount, 0.0)
+
+# ---------- buff aura (BUFF tower type) ----------
+
+func _build_buff_aura() -> void:
+	var aura := Area3D.new()
+	aura.collision_layer = 0
+	aura.collision_mask = 2  # tower layer
+	var cshape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = data.buff_radius
+	cshape.shape = sphere
+	aura.add_child(cshape)
+	aura.body_entered.connect(_on_buff_target_entered)
+	aura.body_exited.connect(_on_buff_target_exited)
+	add_child(aura)
+
+func _on_buff_target_entered(body: Node) -> void:
+	# The StaticBody3D is a child of the TowerNode, so get the TowerNode parent
+	var tower := body.get_parent()
+	if tower == self or tower == null:
+		return
+	if tower.has_method("apply_tower_buff"):
+		tower.call("apply_tower_buff", data.buff_damage_bonus, data.buff_attack_speed_bonus)
+
+func _on_buff_target_exited(body: Node) -> void:
+	var tower := body.get_parent()
+	if tower == self or tower == null:
+		return
+	if tower.has_method("remove_tower_buff"):
+		tower.call("remove_tower_buff", data.buff_damage_bonus, data.buff_attack_speed_bonus)
+
+func apply_tower_buff(dmg_bonus: float, spd_bonus: float) -> void:
+	_damage_buff += dmg_bonus
+	_attack_speed_buff += spd_bonus
+
+func remove_tower_buff(dmg_bonus: float, spd_bonus: float) -> void:
+	_damage_buff = maxf(_damage_buff - dmg_bonus, 0.0)
+	_attack_speed_buff = maxf(_attack_speed_buff - spd_bonus, 0.0)
+
+# ---------- mortar ground indicator ----------
+
+func _build_mortar_decal() -> void:
+	_mortar_decal = MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = data.splash_radius - 0.15
+	torus.outer_radius = data.splash_radius
+	_mortar_decal.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.3, 0.1, 0.4)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.3, 0.1)
+	mat.emission_energy_multiplier = 0.8
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mortar_decal.set_surface_override_material(0, mat)
+	_mortar_decal.rotation_degrees.x = 90.0
+	_mortar_decal.visible = false
+	# Parent to world so it shows at target position, not tower-local
+	call_deferred("_attach_mortar_decal")
+
+func _attach_mortar_decal() -> void:
+	var world_parent := get_parent()
+	if world_parent and _mortar_decal:
+		world_parent.add_child(_mortar_decal)
+
+func _predict_impact_pos(target: Node) -> Vector3:
+	var target_pos: Vector3 = target.global_position
+	var target_vel: Variant = target.get("velocity")
+	if target_vel is Vector3 and (target_vel as Vector3).length() > 0.1:
+		# Lead time based on projectile travel time
+		var dist := global_position.distance_to(target_pos)
+		var proj_speed := 14.0 * 0.5  # mortar speed multiplier
+		var lead_time := dist / proj_speed if proj_speed > 0.0 else 0.0
+		target_pos += (target_vel as Vector3) * lead_time * 0.5
+	return target_pos

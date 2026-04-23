@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_mortar"
+display_name = "Mortar"
+description = "Fires at predicted ground position with large splash radius. Slow but devastating AoE."
+tower_type = 6
+cost = 130
+sell_value = 65
+range_units = 7.0
+damage = 45.0
+attack_speed = 0.35
+splash_radius = 3.0
+slow_amount = 0.0
+max_health = 100.0
+upgrade_ids = []
+icon_color = Color(0.6, 0.4, 0.2, 1)
+model_path = "res://assets/models/tower-defense-kit/weapon-catapult.glb"
+model_scale = 3.0

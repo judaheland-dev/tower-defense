@@ -3,3 +3,4 @@ res://scenes/game/MobNode.gd
 res://scenes/game/Game.gd
 res://resources/MobData.gd
 res://resources/TowerData.gd
+res://scenes/game/ProjectileNode.gd

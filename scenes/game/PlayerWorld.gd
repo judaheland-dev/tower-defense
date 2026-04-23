@@ -446,7 +446,9 @@ func spawn_mob(data: MobData) -> void:
 
 func queue_mob_spawns(mobs: Array) -> void:
 	for m in mobs:
-		_pending_spawns.append(m)
+		var count: int = m.get("spawn_count") if m.get("spawn_count") != null else 1
+		for _j in maxi(count, 1):
+			_pending_spawns.append(m)
 	_spawn_timer = 0.0  # first mob spawns immediately
 
 func _process_pending_spawns(delta: float) -> void:

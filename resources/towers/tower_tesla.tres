@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_tesla"
+display_name = "Tesla Coil"
+description = "Chain lightning bounces to 3 nearby mobs at reduced damage. Counters swarms."
+tower_type = 5
+cost = 110
+sell_value = 55
+range_units = 4.5
+damage = 15.0
+attack_speed = 1.2
+splash_radius = 0.0
+slow_amount = 0.0
+chain_count = 3
+chain_range = 3.0
+chain_damage_falloff = 0.7
+max_health = 80.0
+upgrade_ids = []
+icon_color = Color(0.3, 0.5, 1.0, 1)
+model_path = "res://assets/models/tower-defense-kit/tower-round-crystals.glb"
+model_scale = 3.0

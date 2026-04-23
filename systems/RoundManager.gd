@@ -87,7 +87,9 @@ func _spawn_queued_mobs() -> void:
 		var defender_world: Node = player_worlds[defender_index]
 
 		var queued: Array = attacker_world.call("get_queued_mobs")
-		_mobs_spawned_on_field[defender_index] += queued.size()
+		for mob_data in queued:
+			var count: int = mob_data.get("spawn_count") if mob_data.get("spawn_count") != null else 1
+			_mobs_spawned_on_field[defender_index] += maxi(count, 1)
 		defender_world.call("queue_mob_spawns", queued)
 		# Army persists across rounds - do NOT clear the queue
 

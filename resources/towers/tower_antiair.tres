@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_antiair"
+display_name = "Sky Piercer"
+description = "Fast-firing tower that deals 2.5x damage to flying mobs. Effective vs all targets."
+tower_type = 9
+cost = 75
+sell_value = 37
+range_units = 6.0
+damage = 18.0
+attack_speed = 1.5
+splash_radius = 0.0
+slow_amount = 0.0
+flying_damage_multiplier = 2.5
+max_health = 70.0
+upgrade_ids = []
+icon_color = Color(0.8, 0.2, 0.2, 1)
+model_path = "res://assets/models/tower-defense-kit/weapon-ballista.glb"
+model_scale = 3.0

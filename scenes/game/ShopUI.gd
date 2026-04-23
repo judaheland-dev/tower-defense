@@ -44,6 +44,12 @@ func _load_items() -> void:
 		"res://resources/towers/tower_arrow.tres",
 		"res://resources/towers/tower_cannon.tres",
 		"res://resources/towers/tower_slow.tres",
+		"res://resources/towers/tower_sniper.tres",
+		"res://resources/towers/tower_tesla.tres",
+		"res://resources/towers/tower_mortar.tres",
+		"res://resources/towers/tower_poison.tres",
+		"res://resources/towers/tower_buff.tres",
+		"res://resources/towers/tower_antiair.tres",
 	]
 	for path in tower_paths:
 		if ResourceLoader.exists(path):
@@ -54,6 +60,9 @@ func _load_items() -> void:
 		"res://resources/mobs/mob_armored.tres",
 		"res://resources/mobs/mob_fast.tres",
 		"res://resources/mobs/mob_healer.tres",
+		"res://resources/mobs/mob_flying.tres",
+		"res://resources/mobs/mob_saboteur.tres",
+		"res://resources/mobs/mob_swarm.tres",
 	]
 	for path in mob_paths:
 		if ResourceLoader.exists(path):
@@ -140,7 +149,8 @@ func _make_item_button(item: Resource, font: FontFile) -> Button:
 	hbox.add_theme_constant_override("separation", 8)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var icon := _make_item_icon(item, 48)
+	var icon_size := 60 if item is MobData else 48
+	var icon := _make_item_icon(item, icon_size)
 	hbox.add_child(icon)
 
 	var text_label := Label.new()

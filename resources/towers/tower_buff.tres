@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_buff"
+display_name = "War Banner"
+description = "Boosts nearby towers: +5 damage and +20% attack speed. Does not attack."
+tower_type = 7
+cost = 100
+sell_value = 50
+range_units = 0.0
+damage = 0.0
+attack_speed = 0.0
+splash_radius = 0.0
+slow_amount = 0.0
+buff_damage_bonus = 5.0
+buff_attack_speed_bonus = 0.2
+buff_radius = 4.0
+max_health = 60.0
+upgrade_ids = []
+icon_color = Color(1.0, 0.85, 0.2, 1)
+model_path = "res://assets/models/tower-defense-kit/tower-square-build-a.glb"
+model_scale = 3.0

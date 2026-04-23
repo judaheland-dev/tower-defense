@@ -29,6 +29,9 @@ class_name MobData
 @export var debuff_attack_slow: float = 0.5      # fraction reduction to tower attack_speed
 @export var debuff_radius: float = 2.0
 
+# Swarm
+@export var spawn_count: int = 1                 # how many mob instances to spawn per purchase
+
 # Visual
 @export var icon_color: Color = Color(0.5, 0.5, 0.5)
 @export var model_path: String = ""

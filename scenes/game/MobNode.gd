@@ -38,6 +38,9 @@ const SEPARATION_STRENGTH: float = 2.5
 var _separation_area: Area3D = null
 var _nearby_mobs: Array[Node] = []
 
+# Damage-over-time timers (from Poison towers)
+var _dot_timers: Array[Dictionary] = []
+
 signal reached_exit(mob: Node)
 signal died(mob: Node)
 
@@ -229,6 +232,20 @@ func _physics_process(delta: float) -> void:
 				if ally.has_method("receive_heal"):
 					ally.call("receive_heal", data.heal_rate * delta)
 
+	# Tick DoT timers (damage bypasses armor)
+	if not _dot_timers.is_empty():
+		var i := _dot_timers.size() - 1
+		while i >= 0:
+			var dot: Dictionary = _dot_timers[i]
+			dot["remaining"] -= delta
+			_current_hp -= dot["dps"] * delta
+			if dot["remaining"] <= 0.0:
+				_dot_timers.remove_at(i)
+			i -= 1
+		if _current_hp <= 0.0 and not _dying:
+			_play_death()
+			return
+
 	# Reached exit check: nav agent finished OR mob is physically close to exit
 	var at_exit := global_position.distance_to(exit_position) < 1.5
 	if ((_nav_agent.is_navigation_finished() and _distance_traveled > 1.0) or at_exit):
@@ -409,6 +426,9 @@ func _play_death() -> void:
 
 func receive_heal(amount: float) -> void:
 	_current_hp = minf(_current_hp + amount, data.max_health)
+
+func apply_dot(dps: float, duration: float) -> void:
+	_dot_timers.append({"dps": dps, "remaining": duration})
 
 # ---------- slow/buff ----------
 

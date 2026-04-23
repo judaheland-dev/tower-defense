@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/MobData.gd" id="1_mobdata"]
+
+[resource]
+script = ExtResource("1_mobdata")
+id = &"mob_swarm"
+display_name = "Ratling"
+description = "Spawns 4 weak units for one purchase. Overwhelms single-target towers."
+cost = 40
+max_health = 15.0
+move_speed = 4.5
+armor = 0.0
+base_damage = 1.0
+bounty = 3
+attacks_defenses = false
+is_flying = false
+heals_nearby_allies = false
+heal_rate = 0.0
+heal_radius = 2.0
+buffs_nearby_allies = false
+buff_speed_bonus = 0.0
+buff_armor_bonus = 0.0
+buff_radius = 2.0
+debuffs_nearby_towers = false
+debuff_attack_slow = 0.5
+debuff_radius = 2.0
+spawn_count = 4
+icon_color = Color(0.8, 0.7, 0.3, 1)
+model_path = "res://assets/models/mini-dungeon/Models/GLB format/character-human.glb"
+model_scale = 1.2

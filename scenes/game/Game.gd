@@ -309,10 +309,19 @@ func _prerender_item_icons() -> void:
 		"res://resources/towers/tower_arrow.tres",
 		"res://resources/towers/tower_cannon.tres",
 		"res://resources/towers/tower_slow.tres",
+		"res://resources/towers/tower_sniper.tres",
+		"res://resources/towers/tower_tesla.tres",
+		"res://resources/towers/tower_mortar.tres",
+		"res://resources/towers/tower_poison.tres",
+		"res://resources/towers/tower_buff.tres",
+		"res://resources/towers/tower_antiair.tres",
 		"res://resources/mobs/mob_basic.tres",
 		"res://resources/mobs/mob_armored.tres",
 		"res://resources/mobs/mob_fast.tres",
 		"res://resources/mobs/mob_healer.tres",
+		"res://resources/mobs/mob_flying.tres",
+		"res://resources/mobs/mob_saboteur.tres",
+		"res://resources/mobs/mob_swarm.tres",
 	]
 
 	var unique_models: Dictionary = {}  # model_path -> render_scale (float)

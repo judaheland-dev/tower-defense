@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_sniper"
+display_name = "Sniper Tower"
+description = "Very long range, very high single-target damage. Slow fire rate. Counters high-value targets."
+tower_type = 4
+cost = 120
+sell_value = 60
+range_units = 9.0
+damage = 80.0
+attack_speed = 0.3
+splash_radius = 0.0
+slow_amount = 0.0
+max_health = 50.0
+upgrade_ids = []
+icon_color = Color(0.9, 0.6, 0.1, 1)
+model_path = "res://assets/models/tower-defense-kit/weapon-turret.glb"
+model_scale = 3.0
