@@ -79,7 +79,7 @@ func _begin_play() -> void:
 	_spawn_queued_mobs()
 
 func _spawn_queued_mobs() -> void:
-	# Each player's purchased mobs spawn on the OPPONENT's field
+	# Each player's purchased mobs spawn on the OPPONENT's field (staggered)
 	for i in player_worlds.size():
 		var attacker_world: Node = player_worlds[i]
 		# Opponent index: 0->1, 1->0
@@ -87,9 +87,8 @@ func _spawn_queued_mobs() -> void:
 		var defender_world: Node = player_worlds[defender_index]
 
 		var queued: Array = attacker_world.call("get_queued_mobs")
-		for mob_data in queued:
-			defender_world.call("spawn_mob", mob_data)
-			_mobs_spawned_on_field[defender_index] += 1
+		_mobs_spawned_on_field[defender_index] += queued.size()
+		defender_world.call("queue_mob_spawns", queued)
 		# Army persists across rounds - do NOT clear the queue
 
 func _check_play_end() -> void:

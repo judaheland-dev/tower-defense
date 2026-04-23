@@ -272,6 +272,9 @@ func _update_cursor_visual() -> void:
 # ---------- input / process ----------
 
 func _process(delta: float) -> void:
+	if GameManager.current_state == GameManager.GameState.PLAY:
+		_process_pending_spawns(delta)
+
 	if GameManager.current_state != GameManager.GameState.PREP:
 		_cursor.visible = false
 		return
@@ -387,7 +390,11 @@ func _spawn_tower(data: TowerData, col: int, row: int) -> void:
 
 # ---------- mob management ----------
 
+const SPAWN_INTERVAL: float = 0.35
+
 var _queued_mobs: Array[MobData] = []
+var _pending_spawns: Array[MobData] = []
+var _spawn_timer: float = 0.0
 
 func _queue_mob(data: MobData) -> void:
 	_queued_mobs.append(data)
@@ -432,12 +439,27 @@ func spawn_mob(data: MobData) -> void:
 	mob.reached_exit.connect(_on_mob_reached_exit)
 	mob.died.connect(_on_mob_died)
 	add_child(mob)
-	# Position at spawn (convert global spawn to local)
-	mob.global_position = _spawn_world_pos()
+	# Position at spawn with slight jitter so mobs don't stack on the same pixel
+	var jitter := Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3))
+	mob.global_position = _spawn_world_pos() + jitter
 	_mob_nodes.append(mob)
 
+func queue_mob_spawns(mobs: Array) -> void:
+	for m in mobs:
+		_pending_spawns.append(m)
+	_spawn_timer = 0.0  # first mob spawns immediately
+
+func _process_pending_spawns(delta: float) -> void:
+	if _pending_spawns.is_empty():
+		return
+	_spawn_timer -= delta
+	if _spawn_timer <= 0.0:
+		var data: MobData = _pending_spawns.pop_front()
+		spawn_mob(data)
+		_spawn_timer = SPAWN_INTERVAL
+
 func get_active_mob_count() -> int:
-	var count := 0
+	var count := _pending_spawns.size()  # include mobs waiting to spawn
 	for m in _mob_nodes:
 		if is_instance_valid(m) and not m.is_queued_for_deletion():
 			count += 1
@@ -487,6 +509,7 @@ func _on_state_changed(new_state: GameManager.GameState) -> void:
 				if is_instance_valid(m) and not m.is_queued_for_deletion():
 					m.queue_free()
 			_mob_nodes.clear()
+			_pending_spawns.clear()
 		GameManager.GameState.PLAY:
 			_cursor.visible = false
 			# Final bake at play start so mobs have an up-to-date nav mesh

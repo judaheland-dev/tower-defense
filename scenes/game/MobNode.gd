@@ -24,6 +24,20 @@ var path_progress: float = 0.0
 var _total_path_length: float = 0.0
 var _distance_traveled: float = 0.0
 
+# --- Animation state ---
+var _visual_root: Node3D = null
+var _dust_particles: GPUParticles3D = null
+var _bob_time: float = 0.0
+var _dying: bool = false
+var _prev_direction: Vector3 = Vector3.ZERO
+var _healer_pulse_time: float = 0.0
+
+# --- Soft separation ---
+const SEPARATION_RADIUS: float = 0.6
+const SEPARATION_STRENGTH: float = 2.5
+var _separation_area: Area3D = null
+var _nearby_mobs: Array[Node] = []
+
 signal reached_exit(mob: Node)
 signal died(mob: Node)
 
@@ -34,13 +48,22 @@ func _ready() -> void:
 	_base_speed = data.move_speed
 
 	_build_collision()
+	_build_visual_root()
+	_build_shadow()
 	_build_model()
+	_build_dust_particles()
 	_build_nav_agent()
+	_build_separation_area()
 
 	if data.heals_nearby_allies or data.buffs_nearby_allies:
 		_build_aura_area()
 	if data.debuffs_nearby_towers:
 		_build_debuff_area()
+
+	# Spawn pop-in animation
+	_visual_root.scale = Vector3.ZERO
+	var tween := create_tween()
+	tween.tween_property(_visual_root, "scale", Vector3.ONE, 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 func _build_collision() -> void:
 	# Layer 3 (P1 field mobs) = bitmask 4, layer 4 (P2 field mobs) = bitmask 8
@@ -55,6 +78,26 @@ func _build_collision() -> void:
 	cshape.position = Vector3(0.0, 0.5, 0.0)
 	add_child(cshape)
 
+func _build_visual_root() -> void:
+	_visual_root = Node3D.new()
+	_visual_root.name = "VisualRoot"
+	add_child(_visual_root)
+
+func _build_shadow() -> void:
+	var shadow := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(0.7, 0.7)
+	shadow.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.0, 0.0, 0.0, 0.35)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	shadow.set_surface_override_material(0, mat)
+	shadow.position = Vector3(0.0, 0.02, 0.0)
+	# Shadow stays on ground - parent to self, not _visual_root
+	add_child(shadow)
+
 func _build_model() -> void:
 	# Always add a colored capsule so the mob is always visible
 	var mesh_inst := MeshInstance3D.new()
@@ -67,17 +110,56 @@ func _build_model() -> void:
 	mat.albedo_color = _placeholder_color()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mesh_inst.set_surface_override_material(0, mat)
-	add_child(mesh_inst)
+	_visual_root.add_child(mesh_inst)
 
 	if ResourceLoader.exists(data.model_path):
 		var scene: PackedScene = load(data.model_path)
 		var inst := scene.instantiate()
 		inst.scale = Vector3.ONE * data.model_scale
-		# Rotate 180° so the model's front faces Godot's -Z (node forward direction)
+		# Rotate 180 so the model's front faces Godot's -Z (node forward direction)
 		inst.rotation_degrees.y = 180.0
-		add_child(inst)
+		_visual_root.add_child(inst)
 		if _has_mesh_instance(inst):
 			mesh_inst.visible = false
+
+func _build_dust_particles() -> void:
+	if data.is_flying:
+		return
+	_dust_particles = GPUParticles3D.new()
+	_dust_particles.emitting = false
+	_dust_particles.amount = 6
+	_dust_particles.lifetime = 0.4
+	_dust_particles.explosiveness = 0.0
+	_dust_particles.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
+	var pmat := ParticleProcessMaterial.new()
+	pmat.direction = Vector3(0.0, 1.0, 0.0)
+	pmat.spread = 60.0
+	pmat.initial_velocity_min = 0.3
+	pmat.initial_velocity_max = 0.8
+	pmat.gravity = Vector3(0.0, -2.0, 0.0)
+	pmat.scale_min = 0.08
+	pmat.scale_max = 0.15
+	pmat.color = Color(0.6, 0.5, 0.35, 0.6)
+	_dust_particles.process_material = pmat
+	_dust_particles.draw_pass_1 = SphereMesh.new()
+	_dust_particles.draw_pass_1.radius = 0.5
+	_dust_particles.draw_pass_1.height = 1.0
+	_dust_particles.position = Vector3(0.0, 0.05, 0.0)
+	add_child(_dust_particles)
+
+func _build_separation_area() -> void:
+	_separation_area = Area3D.new()
+	_separation_area.collision_layer = 0
+	# Detect mobs on the same field
+	_separation_area.collision_mask = 4 if field_player_index == 0 else 8
+	var cshape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = SEPARATION_RADIUS
+	cshape.shape = sphere
+	_separation_area.add_child(cshape)
+	_separation_area.body_entered.connect(_on_separation_entered)
+	_separation_area.body_exited.connect(_on_separation_exited)
+	add_child(_separation_area)
 
 func _has_mesh_instance(node: Node) -> bool:
 	if node is MeshInstance3D:
@@ -133,6 +215,8 @@ func _build_debuff_area() -> void:
 # ---------- process ----------
 
 func _physics_process(delta: float) -> void:
+	if _dying:
+		return
 	if GameManager.current_state != GameManager.GameState.PLAY:
 		return
 	if _nav_agent == null:
@@ -162,16 +246,21 @@ func _physics_process(delta: float) -> void:
 	var effective_speed := (_base_speed + _speed_buff) * (1.0 - _slow_stacks)
 	effective_speed = maxf(effective_speed, 0.2)  # never fully stopped
 
+	# Compute soft separation force from nearby mobs
+	var separation := _compute_separation()
+
 	if data.is_flying:
 		# Flying mobs ignore nav mesh - move directly toward exit
 		direction = (exit_position - global_position).normalized()
-		global_position += direction * effective_speed * delta
+		var fly_vel := direction * effective_speed + separation
+		global_position += fly_vel * delta
+		_animate_flying(delta, effective_speed)
 		if global_position.distance_to(exit_position) < 1.0:
 			reached_exit.emit(self)
 			queue_free()
 		return
 
-	velocity = direction * effective_speed
+	velocity = direction * effective_speed + separation
 	move_and_slide()
 
 	# Track path progress for targeting priority
@@ -187,15 +276,136 @@ func _physics_process(delta: float) -> void:
 	if velocity.length() > 0.1:
 		look_at(global_position + velocity.normalized(), Vector3.UP)
 
+	_animate_ground(delta, effective_speed, direction)
+
+# ---------- procedural animation ----------
+
+func _animate_ground(delta: float, speed: float, direction: Vector3) -> void:
+	var moving := velocity.length() > 0.1
+
+	# Bobbing
+	if moving:
+		var bob_freq := 6.0 + speed * 1.2
+		_bob_time += delta * bob_freq
+		var bob_val := sin(_bob_time)
+		var bob_amp := 0.1
+		_visual_root.position.y = bob_val * bob_amp
+
+		# Squash & stretch synced to bob
+		var squash := 1.0 - bob_val * 0.08
+		var stretch := 1.0 + bob_val * 0.04
+		_visual_root.scale = Vector3(stretch, squash, stretch)
+	else:
+		_visual_root.position.y = lerpf(_visual_root.position.y, 0.0, delta * 8.0)
+		_visual_root.scale = _visual_root.scale.lerp(Vector3.ONE, delta * 8.0)
+		_bob_time = 0.0
+
+	# Tilt into movement direction changes
+	var target_tilt := 0.0
+	if moving and _prev_direction.length() > 0.1:
+		var dir_change := direction - _prev_direction
+		if dir_change.length() > 0.01:
+			target_tilt = clampf(dir_change.dot(basis.z) * 15.0, -10.0, 10.0)
+	_visual_root.rotation_degrees.x = lerpf(_visual_root.rotation_degrees.x, target_tilt, delta * 6.0)
+	_prev_direction = direction
+
+	# Dust particles
+	if _dust_particles:
+		_dust_particles.emitting = moving
+
+	# Healer pulse
+	if data.heals_nearby_allies:
+		_animate_healer_pulse(delta)
+
+func _animate_flying(delta: float, speed: float) -> void:
+	# Floating hover - slow, large amplitude bob
+	_bob_time += delta * 2.5
+	var hover_y := sin(_bob_time) * 0.3 + 0.8  # hover above ground
+	_visual_root.position.y = hover_y
+
+	# Gentle sway
+	_visual_root.rotation_degrees.z = sin(_bob_time * 0.7) * 5.0
+	_visual_root.rotation_degrees.x = cos(_bob_time * 0.5) * 3.0
+
+	# No squash/stretch for flying mobs
+	_visual_root.scale = Vector3.ONE
+
+	# Face movement
+	var dir := (exit_position - global_position).normalized()
+	if dir.length() > 0.1:
+		look_at(global_position + dir, Vector3.UP)
+
+	# Healer pulse
+	if data.heals_nearby_allies:
+		_animate_healer_pulse(delta)
+
+func _animate_healer_pulse(delta: float) -> void:
+	_healer_pulse_time += delta * TAU  # full cycle per second
+	var pulse := 1.0 + sin(_healer_pulse_time) * 0.05
+	_visual_root.scale *= pulse
+
+# ---------- separation ----------
+
+func _compute_separation() -> Vector3:
+	var push := Vector3.ZERO
+	for other in _nearby_mobs:
+		if not is_instance_valid(other) or other == self:
+			continue
+		var other_pos: Vector3 = other.global_position
+		var diff := global_position - other_pos
+		diff.y = 0.0
+		var dist := diff.length()
+		if dist < 0.01:
+			# Nearly overlapping - push in a random-ish direction
+			diff = Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized()
+			dist = 0.01
+		if dist < SEPARATION_RADIUS:
+			var strength := (SEPARATION_RADIUS - dist) / SEPARATION_RADIUS
+			push += diff.normalized() * strength * SEPARATION_STRENGTH
+	return push
+
+func _on_separation_entered(body: Node) -> void:
+	if body != self and not _nearby_mobs.has(body):
+		_nearby_mobs.append(body)
+
+func _on_separation_exited(body: Node) -> void:
+	_nearby_mobs.erase(body)
+
 # ---------- combat ----------
 
 func take_damage(amount: float) -> void:
+	if _dying:
+		return
 	var actual := maxf(amount - (data.armor + _armor_buff), 1.0)
 	_current_hp -= actual
+
+	# Damage flash: brief scale punch
+	if _visual_root and not _dying:
+		var punch := create_tween()
+		punch.tween_property(_visual_root, "scale", Vector3.ONE * 1.15, 0.05)
+		punch.tween_property(_visual_root, "scale", Vector3.ONE, 0.08)
+
 	if _current_hp <= 0.0:
-		AudioManager.play_sfx_path("res://assets/audio/sfx_death.ogg", -8.0)
-		died.emit(self)
-		queue_free()
+		_play_death()
+
+func _play_death() -> void:
+	if _dying:
+		return
+	_dying = true
+	AudioManager.play_sfx_path("res://assets/audio/sfx_death.ogg", -8.0)
+	died.emit(self)
+	# Disable collision so mob doesn't block anything during death anim
+	collision_layer = 0
+	collision_mask = 0
+	if _dust_particles:
+		_dust_particles.emitting = false
+	# Death tween: shrink + spin
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(_visual_root, "scale", Vector3.ZERO, 0.3).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_visual_root, "rotation_degrees:y", _visual_root.rotation_degrees.y + 360.0, 0.3)
+	tween.tween_property(_visual_root, "position:y", _visual_root.position.y + 0.5, 0.15)
+	tween.chain().tween_callback(queue_free)
 
 func receive_heal(amount: float) -> void:
 	_current_hp = minf(_current_hp + amount, data.max_health)
