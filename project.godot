@@ -23,12 +23,17 @@ GameManager="*res://autoloads/GameManager.gd"
 InputManager="*res://autoloads/InputManager.gd"
 AudioManager="*res://autoloads/AudioManager.gd"
 EconomyManager="*res://autoloads/EconomyManager.gd"
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 
 [input]
 
@@ -147,3 +152,7 @@ pause={
 [physics]
 
 3d/default_gravity=0.0
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true

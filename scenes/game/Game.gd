@@ -558,6 +558,7 @@ func _build_round_manager() -> void:
 	if GameManager.current_mode == GameManager.GameMode.PVE:
 		var ai: Node = load("res://systems/SimpleAI.gd").new()
 		ai.player_world = _player_worlds[1]
+		ai.opponent_world = _player_worlds[0]
 		add_child(ai)
 
 func _process(_delta: float) -> void:

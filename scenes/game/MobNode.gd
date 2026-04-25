@@ -599,6 +599,9 @@ func remove_armor_buff(amount: float) -> void:
 # ---------- tower debuff signals ----------
 
 func _on_tower_debuff_entered(body: Node) -> void:
+	# Only debuff towers on the same field we were sent to attack
+	if body.get_parent() != null and body.get_parent().get("field_player_index") != field_player_index:
+		return
 	if not _towers_in_debuff_range.has(body):
 		_towers_in_debuff_range.append(body)
 		if body.has_method("apply_attack_slow"):
@@ -617,6 +620,9 @@ func _on_defense_entered(body: Node) -> void:
 	if tower == null:
 		return
 	if not tower.has_method("take_damage"):
+		return
+	# Only attack towers on the same field (the opponent's field we were sent to)
+	if tower.get("field_player_index") != field_player_index:
 		return
 	if not _defenses_in_range.has(tower):
 		_defenses_in_range.append(tower)

@@ -72,6 +72,20 @@ func _ready() -> void:
 	_buttons.append(btn_quit)
 	_actions.append(_on_quit_pressed)
 
+	var version_label := Label.new()
+	version_label.text = "v" + ProjectSettings.get_setting("application/config/version", "0.0.0")
+	version_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	version_label.offset_left = -120
+	version_label.offset_top = -32
+	version_label.offset_right = -8
+	version_label.offset_bottom = -8
+	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	if font:
+		version_label.add_theme_font_override("font", font)
+	version_label.add_theme_font_size_override("font_size", 16)
+	version_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	canvas.add_child(version_label)
+
 	_update_menu_focus()
 	_play_menu_music()
 

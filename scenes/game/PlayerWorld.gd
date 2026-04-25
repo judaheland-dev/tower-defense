@@ -52,6 +52,11 @@ var _selected_item: Resource = null
 # Set to true by ShopUI when the shop panel is open - blocks cursor/action input
 var shop_open: bool = false
 
+# Sell confirmation: first press arms, second press within timeout confirms
+var _sell_confirm_pending: bool = false
+var _sell_confirm_timer: float = 0.0
+const SELL_CONFIRM_TIMEOUT: float = 2.0  # seconds to confirm sell
+
 signal hp_changed(new_hp: int)
 signal mob_reached_exit(mob: Node)
 signal selected_item_changed(item: Resource)
@@ -611,7 +616,11 @@ func _update_cursor_visual() -> void:
 		var mat: StandardMaterial3D = mesh.get_surface_override_material(0)
 		if mat:
 			var key := "%d,%d" % [_cursor_col, _cursor_row]
-			if _grid[_cursor_col][_cursor_row]:
+			if _sell_confirm_pending:
+				# Flashing red/orange to indicate sell confirmation pending
+				var flash := abs(sin(Time.get_ticks_msec() * 0.008))
+				mat.albedo_color = Color(1.0, 0.15 + flash * 0.35, 0.1, 0.9)
+			elif _grid[_cursor_col][_cursor_row]:
 				# Check if this tower is upgradeable
 				if _selected_item == null and _tower_nodes.has(key):
 					var tower_data: TowerData = _tower_nodes[key].get("data")
@@ -636,10 +645,18 @@ func _process(delta: float) -> void:
 
 	if GameManager.current_state != GameManager.GameState.PREP:
 		_cursor.visible = false
+		_cancel_sell_confirm()
 		return
 	_cursor.visible = true
 	if shop_open:
 		return
+	# Tick sell confirmation timeout
+	if _sell_confirm_pending:
+		_sell_confirm_timer -= delta
+		if _sell_confirm_timer <= 0.0:
+			_cancel_sell_confirm()
+		else:
+			_update_cursor_visual()  # refresh flashing
 	_handle_cursor_input(delta)
 
 	# Direct polling for actions
@@ -655,6 +672,9 @@ func _process(delta: float) -> void:
 			# don't fall through to ready-up; that's handled in Game.gd
 	elif Input.is_action_just_pressed(pfx + "sell"):
 		_try_sell()
+	elif Input.is_action_just_pressed(pfx + "cancel"):
+		if _sell_confirm_pending:
+			_cancel_sell_confirm()
 
 func _handle_cursor_input(delta: float) -> void:
 	var dir := InputManager.get_cursor_dir(player_index)
@@ -669,6 +689,8 @@ func _handle_cursor_input(delta: float) -> void:
 
 	var new_col := clampi(_cursor_col + int(sign(dir.x)), 0, GRID_COLS - 1)
 	var new_row := clampi(_cursor_row + int(sign(dir.y)), 0, GRID_ROWS - 1)
+	if new_col != _cursor_col or new_row != _cursor_row:
+		_cancel_sell_confirm()
 	_cursor_col = new_col
 	_cursor_row = new_row
 	_update_cursor_visual()
@@ -708,7 +730,7 @@ func _try_place() -> void:
 		if not EconomyManager.can_afford(player_index, data.cost):
 			return
 		EconomyManager.spend(player_index, data.cost)
-		_queue_mob(data)
+		queue_mob(data)
 		return
 	if _grid[_cursor_col][_cursor_row]:
 		return  # already occupied by tower/wall
@@ -746,6 +768,18 @@ func _try_place() -> void:
 
 func _try_sell() -> void:
 	var key := "%d,%d" % [_cursor_col, _cursor_row]
+	var has_sellable := _tower_nodes.has(key) or _trap_nodes.has(key)
+	if not has_sellable:
+		return
+	if not _sell_confirm_pending:
+		# First press: arm the confirmation
+		_sell_confirm_pending = true
+		_sell_confirm_timer = SELL_CONFIRM_TIMEOUT
+		_update_cursor_visual()
+		return
+	# Second press: confirmed - execute the sell
+	_sell_confirm_pending = false
+	_sell_confirm_timer = 0.0
 	if _tower_nodes.has(key):
 		var tower_node: Node = _tower_nodes[key]
 		var data: TowerData = tower_node.get("data")
@@ -760,6 +794,7 @@ func _try_sell() -> void:
 		_grid[_cursor_col][_cursor_row] = false
 		_pathfinding.bake_async()
 		tower_changed.emit()
+		_update_cursor_visual()
 		return
 	if _trap_nodes.has(key):
 		var trap_node: Node = _trap_nodes[key]
@@ -769,6 +804,13 @@ func _try_sell() -> void:
 		trap_node.queue_free()
 		_trap_nodes.erase(key)
 		trap_changed.emit()
+	_update_cursor_visual()
+
+func _cancel_sell_confirm() -> void:
+	if _sell_confirm_pending:
+		_sell_confirm_pending = false
+		_sell_confirm_timer = 0.0
+		_update_cursor_visual()
 
 # ---------- upgrade ----------
 
@@ -852,7 +894,7 @@ var _queued_mobs: Array[MobData] = []
 var _pending_spawns: Array[MobData] = []
 var _spawn_timer: float = 0.0
 
-func _queue_mob(data: MobData) -> void:
+func queue_mob(data: MobData) -> void:
 	_queued_mobs.append(data)
 	mob_queue_changed.emit()
 	AudioManager.play_sfx_path("res://assets/audio/sfx_click.ogg", -6.0, 0.9)
