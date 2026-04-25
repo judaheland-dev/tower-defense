@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_slow_2"
+display_name = "Blizzard Tower"
+description = "Upgraded Frost Tower with stronger slow, wider radius, and minor frost damage."
+tower_type = 3
+cost = 80
+sell_value = 80
+range_units = 5.0
+damage = 3.0
+attack_speed = 0.5
+splash_radius = 5.0
+slow_amount = 0.65
+max_health = 80.0
+upgrade_ids = []
+icon_color = Color(0.2, 0.6, 1.0, 1)
+model_path = "res://assets/models/tower-defense-kit/tower-round-crystals.glb"
+model_scale = 3.5

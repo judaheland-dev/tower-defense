@@ -340,6 +340,9 @@ func _physics_process(delta: float) -> void:
 			dot["remaining"] -= delta
 			_current_hp -= dot["dps"] * delta
 			if dot["remaining"] <= 0.0:
+				var hr: float = dot.get("heal_reduction", 0.0)
+				if hr > 0.0:
+					remove_heal_reduction(hr)
 				_dot_timers.remove_at(i)
 			i -= 1
 		if _current_hp <= 0.0 and not _dying:
@@ -527,8 +530,10 @@ func _play_death() -> void:
 func receive_heal(amount: float) -> void:
 	_current_hp = minf(_current_hp + amount * (1.0 - _heal_reduction), data.max_health)
 
-func apply_dot(dps: float, duration: float) -> void:
-	_dot_timers.append({"dps": dps, "remaining": duration})
+func apply_dot(dps: float, duration: float, hr: float = 0.0) -> void:
+	_dot_timers.append({"dps": dps, "remaining": duration, "heal_reduction": hr})
+	if hr > 0.0:
+		apply_heal_reduction(hr)
 
 # ---------- slow/buff ----------
 

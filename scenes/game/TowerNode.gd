@@ -236,6 +236,7 @@ func _launch_projectile(target: Node, col: Color, spd_mult: float, splash: float
 	if data.tower_type == TowerData.TowerType.POISON:
 		proj.dot_damage = data.dot_damage
 		proj.dot_duration = data.dot_duration
+		proj.heal_reduction = data.heal_reduction
 	# Mortar flag
 	if data.tower_type == TowerData.TowerType.MORTAR:
 		proj.is_mortar = true
@@ -303,6 +304,53 @@ func get_hp_fraction() -> float:
 	if data == null or data.max_health <= 0.0:
 		return 1.0
 	return clampf(_current_hp / data.max_health, 0.0, 1.0)
+
+# ---------- upgrade ----------
+
+func upgrade(new_data: TowerData) -> void:
+	var old_type := data.tower_type
+	data = new_data
+	_current_hp = data.max_health
+
+	# Rebuild model
+	if _model_root:
+		_model_root.queue_free()
+		_model_root = null
+	_build_model()
+
+	# Rebuild detection area if needed
+	if _detection_area:
+		_detection_area.queue_free()
+		_detection_area = null
+		_mobs_in_range.clear()
+	if _slow_area:
+		_slow_area.queue_free()
+		_slow_area = null
+
+	var skip_detection := data.tower_type == TowerData.TowerType.WALL or data.tower_type == TowerData.TowerType.BUFF
+	if not skip_detection:
+		_build_detection_area()
+	if data.tower_type == TowerData.TowerType.SLOW:
+		_build_slow_area()
+
+	# Rebuild health bar
+	if _hp_bar_bg:
+		_hp_bar_bg.queue_free()
+		_hp_bar_bg = null
+	if _hp_bar_fill:
+		_hp_bar_fill.queue_free()
+		_hp_bar_fill = null
+	_build_health_bar()
+
+	# Reset attack timer
+	_attack_timer = 0.0
+	_target = null
+
+	# Visual feedback: scale pop
+	if _model_root:
+		_model_root.scale = Vector3(1.3, 0.7, 1.3)
+		var tween := create_tween()
+		tween.tween_property(_model_root, "scale", Vector3.ONE, 0.25).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
 # ---------- health bar ----------
 

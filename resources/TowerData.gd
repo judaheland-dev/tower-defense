@@ -39,6 +39,7 @@ enum TowerType {
 # Damage-over-time stats (POISON)
 @export var dot_damage: float = 0.0        # damage per second of DoT
 @export var dot_duration: float = 0.0      # seconds DoT lasts
+@export var heal_reduction: float = 0.0    # fraction reduction to incoming heals (0-1), applied for dot_duration
 
 # Buff aura stats (BUFF)
 @export var buff_damage_bonus: float = 0.0       # flat damage boost to nearby towers

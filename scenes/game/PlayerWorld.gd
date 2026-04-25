@@ -605,13 +605,22 @@ func _update_cursor_visual() -> void:
 	var pos := cell_to_world(_cursor_col, _cursor_row)
 	_cursor.position = Vector3(pos.x, 0.55, pos.z)
 	# Tint red if cell is occupied by tower/wall, green if trap, otherwise use player color
+	# Gold/yellow if tower is upgradeable and no item selected
 	var mesh: MeshInstance3D = _cursor.get_child(0)
 	if mesh:
 		var mat: StandardMaterial3D = mesh.get_surface_override_material(0)
 		if mat:
 			var key := "%d,%d" % [_cursor_col, _cursor_row]
 			if _grid[_cursor_col][_cursor_row]:
-				mat.albedo_color = Color(1.0, 0.2, 0.2, 0.7)
+				# Check if this tower is upgradeable
+				if _selected_item == null and _tower_nodes.has(key):
+					var tower_data: TowerData = _tower_nodes[key].get("data")
+					if tower_data and not tower_data.upgrade_ids.is_empty():
+						mat.albedo_color = Color(1.0, 0.85, 0.2, 0.8)  # gold = upgradeable
+					else:
+						mat.albedo_color = Color(1.0, 0.2, 0.2, 0.7)
+				else:
+					mat.albedo_color = Color(1.0, 0.2, 0.2, 0.7)
 			elif _trap_nodes.has(key):
 				mat.albedo_color = Color(0.4, 0.7, 0.3, 0.7)
 			elif board_side == 0:
@@ -636,7 +645,10 @@ func _process(delta: float) -> void:
 	# Direct polling for actions
 	var pfx := "p1_" if player_index == 0 else "p2_"
 	if Input.is_action_just_pressed(pfx + "confirm"):
-		_try_place()
+		if _selected_item != null:
+			_try_place()
+		else:
+			_try_upgrade()
 	elif Input.is_action_just_pressed(pfx + "cancel"):
 		if _selected_item != null:
 			set_selected_item(null)
@@ -660,6 +672,7 @@ func _handle_cursor_input(delta: float) -> void:
 	_cursor_col = new_col
 	_cursor_row = new_row
 	_update_cursor_visual()
+	selected_item_changed.emit(_selected_item)  # refresh HUD with tower/upgrade info
 
 # ---------- placement / selling ----------
 
@@ -668,10 +681,23 @@ func set_selected_item(item: Resource) -> void:
 	selected_item_changed.emit(item)
 
 func get_selected_item_name() -> String:
-	if _selected_item == null:
-		return ""
-	var n: Variant = _selected_item.get("display_name")
-	return n if n is String else ""
+	if _selected_item != null:
+		var n: Variant = _selected_item.get("display_name")
+		return n if n is String else ""
+	# If no item selected but cursor is on upgradeable tower, show upgrade info
+	var key := "%d,%d" % [_cursor_col, _cursor_row]
+	if _tower_nodes.has(key):
+		var tower_data: TowerData = _tower_nodes[key].get("data")
+		if tower_data and not tower_data.upgrade_ids.is_empty():
+			var upgrade_id: StringName = tower_data.upgrade_ids[0]
+			var upgrade_path := "res://resources/towers/%s.tres" % upgrade_id
+			if ResourceLoader.exists(upgrade_path):
+				var upgrade_data: TowerData = load(upgrade_path)
+				if upgrade_data:
+					return "%s -> %s (%dg)" % [tower_data.display_name, upgrade_data.display_name, upgrade_data.cost]
+		elif tower_data:
+			return tower_data.display_name
+	return ""
 
 func _try_place() -> void:
 	if _selected_item == null:
@@ -743,6 +769,31 @@ func _try_sell() -> void:
 		trap_node.queue_free()
 		_trap_nodes.erase(key)
 		trap_changed.emit()
+
+# ---------- upgrade ----------
+
+func _try_upgrade() -> void:
+	var key := "%d,%d" % [_cursor_col, _cursor_row]
+	if not _tower_nodes.has(key):
+		return
+	var tower_node: Node = _tower_nodes[key]
+	var tower_data: TowerData = tower_node.get("data")
+	if tower_data == null or tower_data.upgrade_ids.is_empty():
+		return
+	# Use first available upgrade
+	var upgrade_id: StringName = tower_data.upgrade_ids[0]
+	var upgrade_path := "res://resources/towers/%s.tres" % upgrade_id
+	if not ResourceLoader.exists(upgrade_path):
+		return
+	var upgrade_data: TowerData = load(upgrade_path)
+	if upgrade_data == null:
+		return
+	if not EconomyManager.can_afford(player_index, upgrade_data.cost):
+		return
+	EconomyManager.spend(player_index, upgrade_data.cost)
+	tower_node.call("upgrade", upgrade_data)
+	tower_changed.emit()
+	AudioManager.play_sfx_path("res://assets/audio/sfx_place.ogg", -2.0)
 
 # ---------- tower spawning ----------
 

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_cannon_2"
+display_name = "Heavy Cannon"
+description = "Upgraded Cannon with increased damage and a wider blast radius."
+tower_type = 2
+cost = 100
+sell_value = 100
+range_units = 5.0
+damage = 42.0
+attack_speed = 0.6
+splash_radius = 2.5
+slow_amount = 0.0
+max_health = 150.0
+upgrade_ids = []
+icon_color = Color(1.0, 0.35, 0.1, 1)
+model_path = "res://assets/models/tower-defense-kit/weapon-cannon.glb"
+model_scale = 3.5

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TowerData.gd" id="1_towerdata"]
+
+[resource]
+script = ExtResource("1_towerdata")
+id = &"tower_poison_2"
+display_name = "Plague Tower"
+description = "Upgraded Poison Tower with stronger DoT and 60% healing reduction."
+tower_type = 8
+cost = 90
+sell_value = 90
+range_units = 5.5
+damage = 8.0
+attack_speed = 1.0
+splash_radius = 0.0
+slow_amount = 0.0
+dot_damage = 18.0
+dot_duration = 5.0
+heal_reduction = 0.6
+max_health = 90.0
+upgrade_ids = []
+icon_color = Color(0.15, 0.9, 0.15, 1)
+model_path = "res://assets/models/tower-defense-kit/tower-round-base.glb"
+model_scale = 3.5

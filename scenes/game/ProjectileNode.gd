@@ -20,6 +20,7 @@ var chain_damage_falloff: float = 0.7
 # Damage over time (Poison)
 var dot_damage: float = 0.0
 var dot_duration: float = 0.0
+var heal_reduction: float = 0.0
 
 # Mortar flag
 var is_mortar: bool = false
@@ -107,7 +108,7 @@ func _on_hit() -> void:
 func _apply_dot_to(mob: Node) -> void:
 	if dot_damage > 0.0 and dot_duration > 0.0:
 		if mob != null and is_instance_valid(mob) and mob.has_method("apply_dot"):
-			mob.call("apply_dot", dot_damage, dot_duration)
+			mob.call("apply_dot", dot_damage, dot_duration, heal_reduction)
 
 # ---------- chain lightning ----------
 

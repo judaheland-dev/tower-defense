@@ -71,7 +71,7 @@ func _give_free_mob(player_index: int) -> void:
 	var path := "res://resources/mobs/mob_basic.tres"
 	if ResourceLoader.exists(path):
 		var mob_data: MobData = load(path)
-		player_worlds[player_index].call("_queue_mob", mob_data)
+		player_worlds[player_index].call("queue_mob", mob_data)
 
 func _begin_play() -> void:
 	_play_time_remaining = PLAY_TIME

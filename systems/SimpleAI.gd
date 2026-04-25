@@ -22,6 +22,10 @@ func _load_items() -> void:
 		"res://resources/towers/tower_arrow.tres",
 		"res://resources/towers/tower_cannon.tres",
 		"res://resources/towers/tower_slow.tres",
+		"res://resources/towers/tower_sniper.tres",
+		"res://resources/towers/tower_tesla.tres",
+		"res://resources/towers/tower_poison.tres",
+		"res://resources/towers/tower_antiair.tres",
 	]
 	for path in tower_paths:
 		if ResourceLoader.exists(path):
@@ -65,6 +69,9 @@ func _take_action() -> void:
 
 	# Place towers
 	_place_towers(tower_budget, round_num)
+
+	# Try upgrading existing towers with leftover coins
+	_upgrade_towers()
 
 func _buy_mobs(budget: int, round_num: int) -> void:
 	if _mob_items.is_empty():
@@ -123,6 +130,34 @@ func _place_towers(budget: int, round_num: int) -> void:
 		player_world.set("_cursor_row", row)
 		player_world.call("_try_place")
 		remaining -= tower_data.cost
+
+func _upgrade_towers() -> void:
+	if player_world == null:
+		return
+	var tower_nodes: Dictionary = player_world.get("_tower_nodes")
+	if tower_nodes == null or tower_nodes.is_empty():
+		return
+	# Shuffle keys to avoid always upgrading the same tower first
+	var keys: Array = tower_nodes.keys()
+	keys.shuffle()
+	for key in keys:
+		var tower_node: Node = tower_nodes[key]
+		if not is_instance_valid(tower_node):
+			continue
+		var tower_data: TowerData = tower_node.get("data")
+		if tower_data == null or tower_data.upgrade_ids.is_empty():
+			continue
+		var upgrade_id: StringName = tower_data.upgrade_ids[0]
+		var upgrade_path := "res://resources/towers/%s.tres" % upgrade_id
+		if not ResourceLoader.exists(upgrade_path):
+			continue
+		var upgrade_data: TowerData = load(upgrade_path)
+		if upgrade_data == null:
+			continue
+		if not EconomyManager.can_afford(1, upgrade_data.cost):
+			continue
+		EconomyManager.spend(1, upgrade_data.cost)
+		tower_node.call("upgrade", upgrade_data)
 
 func _on_state_changed(new_state: GameManager.GameState) -> void:
 	if new_state == GameManager.GameState.PREP:

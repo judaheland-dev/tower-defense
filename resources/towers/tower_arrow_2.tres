@@ -4,19 +4,19 @@
 
 [resource]
 script = ExtResource("1_towerdata")
-id = &"tower_arrow"
-display_name = "Arrow Tower"
-description = "Fires arrows at the nearest mob. Fast attack speed, moderate damage."
+id = &"tower_arrow_2"
+display_name = "Crossbow Tower"
+description = "Upgraded Arrow Tower with higher damage, faster attacks, and extended range."
 tower_type = 1
-cost = 60
-sell_value = 30
-range_units = 5.5
-damage = 12.0
-attack_speed = 1.8
+cost = 80
+sell_value = 70
+range_units = 6.5
+damage = 18.0
+attack_speed = 2.0
 splash_radius = 0.0
 slow_amount = 0.0
-max_health = 80.0
-upgrade_ids = [&"tower_arrow_2"]
-icon_color = Color(0.3, 0.8, 0.3, 1)
+max_health = 100.0
+upgrade_ids = []
+icon_color = Color(0.2, 0.9, 0.2, 1)
 model_path = "res://assets/models/tower-defense-kit/weapon-ballista.glb"
-model_scale = 3.0
+model_scale = 3.5

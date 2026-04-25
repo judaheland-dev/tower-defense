@@ -17,6 +17,7 @@ var viewport_left: int = 0
 
 var _backdrop: ColorRect = null
 var _panel: PanelContainer = null
+var _scroll: ScrollContainer = null
 var _coin_label: Label = null
 var _is_visible: bool = false
 
@@ -37,6 +38,9 @@ var _nav_timer: float = 0.0
 
 # Pre-rendered 3D model icon textures, set by Game.gd before add_child
 var icon_cache: Dictionary = {}
+
+# Mob card tracking: MobData resource -> { "button": Button, "qty_label": Label }
+var _mob_card_map: Dictionary = {}
 
 # --- Focus style boxes ---
 var _style_normal: StyleBoxFlat = null
@@ -153,14 +157,14 @@ func _build_ui() -> void:
 	_panel.add_theme_stylebox_override("panel", panel_style)
 	add_child(_panel)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_panel.add_child(scroll)
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_panel.add_child(_scroll)
 
 	var main_vbox := VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.add_theme_constant_override("separation", 10)
-	scroll.add_child(main_vbox)
+	_scroll.add_child(main_vbox)
 
 	# --- Header row: title + coins ---
 	var header_hbox := HBoxContainer.new()
@@ -311,12 +315,30 @@ func _make_card(item: Resource, font: FontFile) -> Button:
 		stat_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 		vbox.add_child(stat_lbl)
 
-	btn.pressed.connect(func() -> void:
-		if player_world:
-			player_world.call("set_selected_item", item)
-			AudioManager.play_ui_click()
-		_set_panel_visible(false)
-	)
+	# Qty badge for mob cards (hidden for non-mobs)
+	var qty_lbl := Label.new()
+	qty_lbl.text = ""
+	qty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	qty_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if font:
+		qty_lbl.add_theme_font_override("font", font)
+	qty_lbl.add_theme_font_size_override("font_size", 14)
+	qty_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	qty_lbl.visible = false
+	vbox.add_child(qty_lbl)
+
+	if item is MobData:
+		_mob_card_map[item] = {"button": btn, "qty_label": qty_lbl}
+		btn.pressed.connect(func() -> void:
+			_try_purchase_mob(item, btn)
+		)
+	else:
+		btn.pressed.connect(func() -> void:
+			if player_world:
+				player_world.call("set_selected_item", item)
+				AudioManager.play_ui_click()
+			_set_panel_visible(false)
+		)
 	return btn
 
 func _get_stat_line(item: Resource) -> String:
@@ -411,6 +433,7 @@ func _set_panel_visible(visible: bool) -> void:
 		_focused_idx = 0
 		_nav_timer = 0.0
 		_update_coin_display()
+		_update_mob_qty_labels()
 		_update_focus_visual()
 
 func _update_coin_display() -> void:
@@ -432,6 +455,21 @@ func _update_focus_visual() -> void:
 			btn.add_theme_stylebox_override("normal", _style_normal)
 			btn.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
+func _ensure_focused_visible() -> void:
+	if not _scroll or _focused_idx >= _item_buttons.size():
+		return
+	var btn: Button = _item_buttons[_focused_idx]
+	# Get button's top/bottom relative to the scroll container's content
+	var btn_rect := btn.get_global_rect()
+	var scroll_rect := _scroll.get_global_rect()
+	var scroll_v := _scroll.scroll_vertical
+	if btn_rect.position.y < scroll_rect.position.y:
+		# Button is above visible area - scroll up
+		_scroll.scroll_vertical = scroll_v - int(scroll_rect.position.y - btn_rect.position.y) - 8
+	elif btn_rect.end.y > scroll_rect.end.y:
+		# Button is below visible area - scroll down
+		_scroll.scroll_vertical = scroll_v + int(btn_rect.end.y - scroll_rect.end.y) + 8
+
 func _select_focused_item() -> void:
 	if _focused_idx >= _item_buttons.size():
 		return
@@ -439,6 +477,9 @@ func _select_focused_item() -> void:
 	if btn.disabled:
 		return
 	var item: Resource = _all_items[_focused_idx]
+	if item is MobData:
+		_try_purchase_mob(item, btn)
+		return
 	if player_world:
 		player_world.call("set_selected_item", item)
 		AudioManager.play_ui_click()
@@ -514,6 +555,7 @@ func _navigate(dir: Vector2) -> void:
 
 	_focused_idx = clampi(_focused_idx, 0, _item_buttons.size() - 1)
 	_update_focus_visual()
+	_ensure_focused_visible()
 
 func _process(delta: float) -> void:
 	if GameManager.current_state != GameManager.GameState.PREP:
@@ -553,3 +595,37 @@ func _refresh_affordability() -> void:
 		var cost: int = _all_items[i].get("cost") if _all_items[i].get("cost") != null else 0
 		btn.disabled = coins < cost
 	_update_focus_visual()
+
+# --- Mob instant-purchase from shop ---
+
+func _try_purchase_mob(data: MobData, btn: Button) -> void:
+	if not player_world:
+		return
+	if not EconomyManager.can_afford(player_index, data.cost):
+		return
+	EconomyManager.spend(player_index, data.cost)
+	player_world.call("queue_mob", data)
+	_flash_card(btn)
+	_update_mob_qty_labels()
+
+## Flash card green briefly on successful purchase.
+func _flash_card(btn: Button) -> void:
+	var tween := create_tween()
+	tween.tween_property(btn, "modulate", Color(0.5, 1.5, 0.5, 1.0), 0.0)
+	tween.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.25)
+
+func _update_mob_qty_labels() -> void:
+	if not player_world:
+		return
+	var counts: Dictionary = player_world.call("get_queued_mob_counts")
+	for mob_data: MobData in _mob_card_map:
+		var entry: Dictionary = _mob_card_map[mob_data]
+		var qty_lbl: Label = entry["qty_label"]
+		var mob_name: String = mob_data.display_name
+		if counts.has(mob_name):
+			var c: int = counts[mob_name]["count"]
+			qty_lbl.text = "Queued: %d" % c
+			qty_lbl.visible = true
+		else:
+			qty_lbl.text = ""
+			qty_lbl.visible = false
