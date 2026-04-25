@@ -13,11 +13,21 @@ var _slow_stacks: float = 0.0      # total slow fraction applied by towers
 var _speed_buff: float = 0.0       # buff from nearby healer/buffer mobs
 var _armor_buff: float = 0.0
 
+# Trap effects (separate from tower slow so they stack multiplicatively)
+var _trap_slow: float = 0.0        # total trap-based slow fraction
+var _damage_amplify: float = 0.0   # extra damage multiplier from amplifier traps
+var _heal_reduction: float = 0.0   # fraction reduction to incoming heals
+
 var _nav_agent: NavigationAgent3D = null
 var _aura_area: Area3D = null       # for healer/buffer mobs emitting auras
 var _debuff_area: Area3D = null     # for mobs that debuff towers
+var _attack_area: Area3D = null      # for mobs that attack defenses
 var _allies_in_range: Array[Node] = []
 var _towers_in_debuff_range: Array[Node] = []
+var _defenses_in_range: Array[Node] = []  # TowerNode refs detected by _attack_area
+var _attack_target: Node = null
+var _attack_cooldown: float = 0.0
+var _is_attacking: bool = false
 
 # Path progress (0-1): how far along the path the mob has traveled, used by towers for targeting priority
 var path_progress: float = 0.0
@@ -62,6 +72,8 @@ func _ready() -> void:
 		_build_aura_area()
 	if data.debuffs_nearby_towers:
 		_build_debuff_area()
+	if data.attacks_defenses:
+		_build_attack_area()
 
 	# Spawn pop-in animation
 	_visual_root.scale = Vector3.ZERO
@@ -215,6 +227,65 @@ func _build_debuff_area() -> void:
 	_debuff_area.body_exited.connect(_on_tower_debuff_exited)
 	add_child(_debuff_area)
 
+func _build_attack_area() -> void:
+	_attack_area = Area3D.new()
+	_attack_area.collision_layer = 0
+	_attack_area.collision_mask = 2  # tower/wall StaticBody3D layer
+
+	var cshape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = data.defense_attack_range
+	cshape.shape = sphere
+	_attack_area.add_child(cshape)
+	_attack_area.body_entered.connect(_on_defense_entered)
+	_attack_area.body_exited.connect(_on_defense_exited)
+	add_child(_attack_area)
+
+func _pick_attack_target() -> Node:
+	# Clean up invalid refs
+	var valid: Array[Node] = []
+	for d in _defenses_in_range:
+		if is_instance_valid(d) and not d.is_queued_for_deletion():
+			valid.append(d)
+	_defenses_in_range = valid
+
+	if _defenses_in_range.is_empty():
+		return null
+
+	# Separate into towers and walls
+	var towers: Array[Node] = []
+	var walls: Array[Node] = []
+	for d in _defenses_in_range:
+		var d_data: Variant = d.get("data")
+		if d_data == null:
+			continue
+		if d_data.tower_type == TowerData.TowerType.WALL:
+			walls.append(d)
+		else:
+			towers.append(d)
+
+	# Priority: towers first (or walls first if prefers_walls)
+	var primary: Array[Node] = walls if data.prefers_walls else towers
+	var secondary: Array[Node] = towers if data.prefers_walls else walls
+
+	var best: Node = null
+	var best_dist: float = INF
+	for d in primary:
+		var dist := global_position.distance_to(d.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = d
+	if best != null:
+		return best
+
+	# Fallback to secondary group
+	for d in secondary:
+		var dist := global_position.distance_to(d.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = d
+	return best
+
 # ---------- process ----------
 
 func _physics_process(delta: float) -> void:
@@ -224,6 +295,35 @@ func _physics_process(delta: float) -> void:
 		return
 	if _nav_agent == null:
 		return
+
+	# --- Attack defenses ---
+	if data.attacks_defenses:
+		_attack_cooldown -= delta
+		var target := _pick_attack_target()
+		if target != null:
+			_attack_target = target
+			_is_attacking = true
+			# Face target
+			var dir_to_target: Vector3 = (target.global_position - global_position).normalized()
+			if dir_to_target.length() > 0.1:
+				look_at(global_position + dir_to_target, Vector3.UP)
+			# Attack on cooldown
+			if _attack_cooldown <= 0.0:
+				target.call("take_damage", data.defense_attack_damage)
+				_attack_cooldown = 1.0 / maxf(data.defense_attack_speed, 0.1)
+				AudioManager.play_sfx_path("res://assets/audio/sfx_impact.ogg", -8.0)
+				# Attack lunge animation
+				if _visual_root and not _dying:
+					var punch := create_tween()
+					punch.tween_property(_visual_root, "scale", Vector3(1.2, 0.85, 1.2), 0.08)
+					punch.tween_property(_visual_root, "scale", Vector3.ONE, 0.12)
+			# Stop moving while attacking
+			if _dust_particles:
+				_dust_particles.emitting = false
+			return
+		else:
+			_is_attacking = false
+			_attack_target = null
 
 	# Heal nearby allies
 	if data.heals_nearby_allies and data.heal_rate > 0.0:
@@ -260,7 +360,7 @@ func _physics_process(delta: float) -> void:
 	if to_next.length() < 0.1:
 		next_pos = exit_position
 	var direction := (next_pos - global_position).normalized()
-	var effective_speed := (_base_speed + _speed_buff) * (1.0 - _slow_stacks)
+	var effective_speed := (_base_speed + _speed_buff) * (1.0 - _slow_stacks) * (1.0 - _trap_slow)
 	effective_speed = maxf(effective_speed, 0.2)  # never fully stopped
 
 	# Compute soft separation force from nearby mobs
@@ -393,7 +493,7 @@ func _on_separation_exited(body: Node) -> void:
 func take_damage(amount: float) -> void:
 	if _dying:
 		return
-	var actual := maxf(amount - (data.armor + _armor_buff), 1.0)
+	var actual := maxf((amount * (1.0 + _damage_amplify)) - (data.armor + _armor_buff), 1.0)
 	_current_hp -= actual
 
 	# Damage flash: brief scale punch
@@ -425,7 +525,7 @@ func _play_death() -> void:
 	tween.chain().tween_callback(queue_free)
 
 func receive_heal(amount: float) -> void:
-	_current_hp = minf(_current_hp + amount, data.max_health)
+	_current_hp = minf(_current_hp + amount * (1.0 - _heal_reduction), data.max_health)
 
 func apply_dot(dps: float, duration: float) -> void:
 	_dot_timers.append({"dps": dps, "remaining": duration})
@@ -437,6 +537,26 @@ func apply_slow(fraction: float) -> void:
 
 func remove_slow(fraction: float) -> void:
 	_slow_stacks = maxf(_slow_stacks - fraction, 0.0)
+
+# ---------- trap effects ----------
+
+func apply_trap_slow(amount: float) -> void:
+	_trap_slow = minf(_trap_slow + amount, 0.9)
+
+func remove_trap_slow(amount: float) -> void:
+	_trap_slow = maxf(_trap_slow - amount, 0.0)
+
+func apply_damage_amplify(amount: float) -> void:
+	_damage_amplify += amount
+
+func remove_damage_amplify(amount: float) -> void:
+	_damage_amplify = maxf(_damage_amplify - amount, 0.0)
+
+func apply_heal_reduction(amount: float) -> void:
+	_heal_reduction = minf(_heal_reduction + amount, 1.0)
+
+func remove_heal_reduction(amount: float) -> void:
+	_heal_reduction = maxf(_heal_reduction - amount, 0.0)
 
 # ---------- aura signals ----------
 
@@ -483,3 +603,23 @@ func _on_tower_debuff_exited(body: Node) -> void:
 	_towers_in_debuff_range.erase(body)
 	if body.has_method("remove_attack_slow"):
 		body.call("remove_attack_slow", data.debuff_attack_slow)
+
+# ---------- defense attack signals ----------
+
+func _on_defense_entered(body: Node) -> void:
+	# body is the StaticBody3D child of TowerNode; get the TowerNode parent
+	var tower := body.get_parent()
+	if tower == null:
+		return
+	if not tower.has_method("take_damage"):
+		return
+	if not _defenses_in_range.has(tower):
+		_defenses_in_range.append(tower)
+
+func _on_defense_exited(body: Node) -> void:
+	var tower := body.get_parent()
+	if tower == null:
+		return
+	_defenses_in_range.erase(tower)
+	if _attack_target == tower:
+		_attack_target = null

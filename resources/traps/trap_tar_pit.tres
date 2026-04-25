@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_tar_pit"
+display_name = "Tar Pit"
+description = "Thick tar drastically slows mobs by 70% while they cross it."
+trap_type = 2
+cost = 40
+sell_value = 20
+slow_amount = 0.7
+damage_per_second = 0.0
+burst_damage = 0.0
+damage_amplify = 0.0
+heal_reduction = 0.0
+income_per_round = 0
+max_charges = 0
+icon_color = Color(0.2, 0.12, 0.04, 1)
+model_path = ""
+model_scale = 1.0
+texture_path = "res://assets/particles/smoke_07.png"

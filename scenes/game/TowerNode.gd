@@ -22,6 +22,11 @@ var _attack_speed_buff: float = 0.0
 # Mortar ground indicator
 var _mortar_decal: MeshInstance3D = null
 
+# Health bar (visible when damaged)
+var _hp_bar_bg: MeshInstance3D = null
+var _hp_bar_fill: MeshInstance3D = null
+var _model_root: Node3D = null  # for hit reaction animation
+
 func _ready() -> void:
 	if data == null:
 		return
@@ -37,8 +42,13 @@ func _ready() -> void:
 		_build_buff_aura()
 	if data.tower_type == TowerData.TowerType.MORTAR:
 		_build_mortar_decal()
+	_build_health_bar()
 
 func _build_model() -> void:
+	_model_root = Node3D.new()
+	_model_root.name = "ModelRoot"
+	add_child(_model_root)
+
 	# Always add a placeholder box
 	var mesh_inst := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -49,13 +59,13 @@ func _build_model() -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mesh_inst.set_surface_override_material(0, mat)
 	mesh_inst.position = Vector3(0.0, box.size.y * 0.5, 0.0)
-	add_child(mesh_inst)
+	_model_root.add_child(mesh_inst)
 
 	if ResourceLoader.exists(data.model_path):
 		var scene: PackedScene = load(data.model_path)
 		var inst := scene.instantiate()
 		inst.scale = Vector3.ONE * data.model_scale
-		add_child(inst)
+		_model_root.add_child(inst)
 		if _has_mesh_instance(inst):
 			mesh_inst.visible = false  # GLB loaded with geometry - hide placeholder
 
@@ -165,10 +175,14 @@ func _pick_target() -> void:
 		_target = null
 		return
 
-	# Target the mob that has traveled furthest (closest to exit by path progress)
+	# Target the mob that has traveled furthest (closest to exit by path progress),
+	# excluding mobs inside the minimum engagement range.
 	var best: Node = null
 	var best_progress: float = -1.0
+	var min_r: float = data.min_range_units
 	for m in _mobs_in_range:
+		if min_r > 0.0 and global_position.distance_to(m.global_position) < min_r:
+			continue
 		var progress: float = m.get("path_progress") if m.get("path_progress") != null else 0.0
 		if progress > best_progress:
 			best_progress = progress
@@ -269,6 +283,12 @@ func _on_slow_mob_exited(body: Node) -> void:
 
 func take_damage(amount: float) -> void:
 	_current_hp -= amount
+	_update_health_bar()
+	# Hit reaction: scale punch
+	if _model_root and _current_hp > 0.0:
+		var punch := create_tween()
+		punch.tween_property(_model_root, "scale", Vector3(1.1, 0.9, 1.1), 0.06)
+		punch.tween_property(_model_root, "scale", Vector3.ONE, 0.1)
 	if _current_hp <= 0.0:
 		_on_destroyed()
 
@@ -278,6 +298,72 @@ func _on_destroyed() -> void:
 		parent.call("on_tower_destroyed", self)
 	AudioManager.play_sfx_path("res://assets/audio/sfx_explosion.ogg", -3.0)
 	queue_free()
+
+func get_hp_fraction() -> float:
+	if data == null or data.max_health <= 0.0:
+		return 1.0
+	return clampf(_current_hp / data.max_health, 0.0, 1.0)
+
+# ---------- health bar ----------
+
+func _build_health_bar() -> void:
+	var bar_y := 2.2 if data.tower_type != TowerData.TowerType.WALL else 2.5
+	var bar_width := 1.2
+	var bar_height := 0.12
+
+	# Background (dark)
+	_hp_bar_bg = MeshInstance3D.new()
+	var bg_quad := QuadMesh.new()
+	bg_quad.size = Vector2(bar_width, bar_height)
+	_hp_bar_bg.mesh = bg_quad
+	var bg_mat := StandardMaterial3D.new()
+	bg_mat.albedo_color = Color(0.15, 0.15, 0.15, 0.8)
+	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	bg_mat.no_depth_test = true
+	bg_mat.render_priority = 10
+	_hp_bar_bg.set_surface_override_material(0, bg_mat)
+	_hp_bar_bg.position = Vector3(0.0, bar_y, 0.0)
+	_hp_bar_bg.visible = false
+	add_child(_hp_bar_bg)
+
+	# Fill (colored)
+	_hp_bar_fill = MeshInstance3D.new()
+	var fill_quad := QuadMesh.new()
+	fill_quad.size = Vector2(bar_width - 0.04, bar_height - 0.04)
+	_hp_bar_fill.mesh = fill_quad
+	var fill_mat := StandardMaterial3D.new()
+	fill_mat.albedo_color = Color(0.2, 0.9, 0.2)
+	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill_mat.no_depth_test = true
+	fill_mat.render_priority = 11
+	_hp_bar_fill.set_surface_override_material(0, fill_mat)
+	_hp_bar_fill.position = Vector3(0.0, bar_y, 0.0)
+	_hp_bar_fill.visible = false
+	add_child(_hp_bar_fill)
+
+func _update_health_bar() -> void:
+	var frac := get_hp_fraction()
+	var damaged := frac < 1.0 and _current_hp > 0.0
+	if _hp_bar_bg:
+		_hp_bar_bg.visible = damaged
+	if _hp_bar_fill:
+		_hp_bar_fill.visible = damaged
+		if damaged:
+			# Scale fill bar horizontally based on HP fraction
+			_hp_bar_fill.scale.x = frac
+			# Shift fill bar left so it drains from right
+			var full_width := 1.16  # bar_width - 0.04
+			_hp_bar_fill.position.x = -(1.0 - frac) * full_width * 0.5
+			# Color: green -> yellow -> red
+			var fill_mat: StandardMaterial3D = _hp_bar_fill.get_surface_override_material(0)
+			if fill_mat:
+				if frac > 0.5:
+					fill_mat.albedo_color = Color(lerp(0.9, 0.2, (frac - 0.5) * 2.0), 0.9, 0.2)
+				else:
+					fill_mat.albedo_color = Color(0.9, lerp(0.2, 0.9, frac * 2.0), 0.2)
 
 func apply_attack_slow(amount: float) -> void:
 	_attack_slow_debuff = minf(_attack_slow_debuff + amount, 0.9)

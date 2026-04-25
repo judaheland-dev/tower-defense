@@ -21,6 +21,9 @@ var _grid: Array = []  # Array[Array[bool]] - [col][row]
 # Placed tower nodes indexed by "col,row" key
 var _tower_nodes: Dictionary = {}
 
+# Placed trap nodes indexed by "col,row" key
+var _trap_nodes: Dictionary = {}
+
 # Active mob nodes
 var _mob_nodes: Array[Node] = []
 
@@ -29,13 +32,22 @@ var _nav_region: NavigationRegion3D = null
 var _cursor: Node3D = null
 var _pathfinding: Node = null
 
+# Gate structure (destructible base)
+var _gate_root: Node3D = null
+var _gate_center: Node3D = null  # gate.glb instance
+var _gate_walls: Array[Node3D] = []  # flanking wall instances
+var _gate_materials: Array[StandardMaterial3D] = []  # override mats for damage tinting
+var _gate_rubble: Array[Node3D] = []  # rubble spawned at low HP
+var _gate_original_transforms: Array[Transform3D] = []  # initial transforms for damage offsets
+var _gate_destroyed: bool = false
+
 # Cursor grid position (local coords: 0..GRID_COLS-1, 0..GRID_ROWS-1)
 var _cursor_col: int = 5
 var _cursor_row: int = 7
 var _cursor_repeat_timer: float = 0.0
 const CURSOR_REPEAT_DELAY: float = 0.15
 
-# Currently selected shop item data (TowerData or MobData or null)
+# Currently selected shop item data (TowerData or MobData or TrapData or null)
 var _selected_item: Resource = null
 # Set to true by ShopUI when the shop panel is open - blocks cursor/action input
 var shop_open: bool = false
@@ -45,6 +57,7 @@ signal mob_reached_exit(mob: Node)
 signal selected_item_changed(item: Resource)
 signal mob_queue_changed()
 signal tower_changed()
+signal trap_changed()
 
 func _ready() -> void:
 	add_to_group("nav_geo")  # lets the NavigationMesh bake scan this node + all children
@@ -61,6 +74,7 @@ func _ready() -> void:
 	add_child(_pathfinding)
 
 	GameManager.state_changed.connect(_on_state_changed)
+	hp_changed.connect(_on_hp_changed_gate)
 
 func _init_grid() -> void:
 	_grid = []
@@ -156,9 +170,6 @@ func _build_border_decorations() -> void:
 		[base + "detail-tree-large.glb", 4.0,  half_h + 2.0],
 		[base + "detail-tree.glb",       11.0, half_h + 1.5],
 		[base + "detail-rocks.glb",      18.0, half_h + 2.0],
-		# Outer edge (base side)
-		[base + "detail-crystal.glb",    -1.5, -6.0],
-		[base + "detail-crystal-large.glb", -1.5, 6.0],
 	]
 	for d in decor:
 		var path: String = d[0]
@@ -226,15 +237,7 @@ func _build_spawn_exit_markers() -> void:
 	else:
 		_add_fallback_marker(spawn_pos, false)
 
-	const EXIT_PATH := "res://assets/models/tower-defense-kit/tile-end-round.glb"
-	if ResourceLoader.exists(EXIT_PATH):
-		var scene: PackedScene = load(EXIT_PATH)
-		var inst := scene.instantiate()
-		inst.scale = Vector3.ONE * CELL_SIZE
-		inst.position = Vector3(exit_pos.x, 0.0, exit_pos.z)
-		add_child(inst)
-	else:
-		_add_fallback_marker(exit_pos, true)
+	_build_gate(exit_pos)
 
 func _add_fallback_marker(world_pos: Vector3, is_exit: bool) -> void:
 	var marker := MeshInstance3D.new()
@@ -252,18 +255,365 @@ func _add_fallback_marker(world_pos: Vector3, is_exit: bool) -> void:
 	marker.position = Vector3(world_pos.x, 0.6, world_pos.z)
 	add_child(marker)
 
+func _build_gate(exit_local_pos: Vector3) -> void:
+	_gate_root = Node3D.new()
+	_gate_root.name = "GateStructure"
+	_gate_root.position = Vector3(exit_local_pos.x, 0.0, exit_local_pos.z)
+	add_child(_gate_root)
+
+	# Gate faces toward the play field along X axis.
+	# gate.glb opening faces along Z by default; rotate 90 deg to face along X.
+	var facing := PI * 0.5 if board_side == 0 else -PI * 0.5
+	var outward := -1.0 if board_side == 0 else 1.0
+
+	const GATE_PATH := "res://assets/models/mini-dungeon/Models/GLB format/gate.glb"
+	const WALL_PATH := "res://assets/models/mini-dungeon/Models/GLB format/wall.glb"
+
+	# Double gate back-to-back so doors are visible from both sides
+	if ResourceLoader.exists(GATE_PATH):
+		var scene: PackedScene = load(GATE_PATH)
+		_gate_center = scene.instantiate()
+		_gate_center.scale = Vector3.ONE * CELL_SIZE * 1.5
+		_gate_center.rotation.y = facing
+		_gate_root.add_child(_gate_center)
+		_gate_original_transforms.append(_gate_center.transform)
+		_apply_gate_material_override(_gate_center)
+
+		var gate_back := scene.instantiate()
+		gate_back.scale = Vector3.ONE * CELL_SIZE * 1.5
+		gate_back.rotation.y = facing + PI
+		gate_back.position.x = outward * 0.05  # tiny offset to avoid z-fighting
+		_gate_root.add_child(gate_back)
+
+		# Wooden door panels inside the gate archway
+		_build_gate_doors(outward)
+	else:
+		_add_fallback_marker(exit_local_pos, true)
+		return
+
+	if not ResourceLoader.exists(WALL_PATH):
+		return
+
+	var wall_scene: PackedScene = load(WALL_PATH)
+	var ws := CELL_SIZE  # wall scale and spacing -- 1:1 means seamless
+	var town_depth := CELL_SIZE * 4.0  # 8 units outward
+	var town_half_z := CELL_SIZE * 6.0  # 12 units from center to edge
+
+	# --- Front wall line (flanking the gate, along Z) ---
+	# Gate at scale 1.5 occupies ~3 units; first wall at ±ws clears it
+	var z := ws
+	while z <= town_half_z + 0.1:
+		for s in [-1.0, 1.0]:
+			var wall := wall_scene.instantiate()
+			wall.scale = Vector3.ONE * ws
+			wall.rotation.y = facing
+			wall.position.z = s * z
+			_gate_root.add_child(wall)
+			# Track 4 closest walls for damage animation
+			if z <= ws * 2:
+				_gate_walls.append(wall)
+				_gate_original_transforms.append(wall.transform)
+				_apply_gate_material_override(wall)
+		z += ws
+
+	# --- Back wall (along Z, at far edge of town) ---
+	z = -town_half_z
+	while z <= town_half_z + 0.1:
+		var wall := wall_scene.instantiate()
+		wall.scale = Vector3.ONE * ws
+		wall.rotation.y = facing
+		wall.position = Vector3(outward * town_depth, 0.0, z)
+		_gate_root.add_child(wall)
+		z += ws
+
+	# --- Side walls (north + south edges, running outward along X) ---
+	var x := 0.0
+	while x <= town_depth + 0.1:
+		for side_z in [-town_half_z, town_half_z]:
+			var wall := wall_scene.instantiate()
+			wall.scale = Vector3.ONE * ws
+			wall.rotation.y = 0.0  # perpendicular to front wall
+			wall.position = Vector3(outward * x, 0.0, side_z)
+			_gate_root.add_child(wall)
+		x += ws
+
+	# --- Dirt/stone floor inside the enclosure ---
+	_build_town_floor(outward, town_depth, town_half_z)
+	# --- Buildings and props inside ---
+	_build_town_interiors(outward, town_depth, town_half_z)
+
+func _build_town_floor(outward: float, depth: float, half_z: float) -> void:
+	const DIRT_PATH := "res://assets/models/tower-defense-kit/tile-dirt.glb"
+	const ROCK_PATH := "res://assets/models/tower-defense-kit/tile-rock.glb"
+	var dirt_scene: PackedScene = null
+	var rock_scene: PackedScene = null
+	if ResourceLoader.exists(DIRT_PATH):
+		dirt_scene = load(DIRT_PATH)
+	if ResourceLoader.exists(ROCK_PATH):
+		rock_scene = load(ROCK_PATH)
+	if dirt_scene == null:
+		return
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99 + player_index
+	var step := CELL_SIZE
+	# Fill interior rectangle with floor tiles
+	var x := step  # start one step inward to avoid overlapping front wall
+	while x < depth:
+		var z := -half_z + step
+		while z < half_z:
+			var scene: PackedScene = dirt_scene
+			if rock_scene and rng.randf() < 0.15:
+				scene = rock_scene
+			var inst := scene.instantiate()
+			inst.scale = Vector3.ONE * step
+			inst.position = Vector3(outward * x, 0.01, z)
+			inst.rotation.y = rng.randi_range(0, 3) * PI * 0.5
+			_gate_root.add_child(inst)
+			z += step
+		x += step
+
+func _build_town_interiors(outward: float, depth: float, half_z: float) -> void:
+	const TD_BASE := "res://assets/models/tower-defense-kit/"
+	const MD_BASE := "res://assets/models/mini-dungeon/Models/GLB format/"
+	var facing := PI * 0.5 if board_side == 0 else -PI * 0.5
+
+	# Buildings using tower build phases as medieval structures
+	var buildings: Array = [
+		# [model_path, x_offset_fraction, z_offset, scale_mult, y_rotation]
+		[TD_BASE + "tower-round-build-e.glb",  0.35, -8.0, 1.0, 0.0],
+		[TD_BASE + "tower-square-build-d.glb", 0.65, -4.0, 0.9, PI * 0.25],
+		[TD_BASE + "tower-round-build-c.glb",  0.35,  4.0, 0.85, PI * 0.5],
+		[TD_BASE + "tower-square-build-e.glb", 0.75, -8.0, 0.8, PI * 0.75],
+		[TD_BASE + "tower-round-build-d.glb",  0.85,  4.0, 0.75, PI],
+		[TD_BASE + "tower-square-build-c.glb", 0.55,  8.0, 0.7, 0.3],
+		[TD_BASE + "tower-round-build-f.glb",  0.50,  0.0, 1.0, PI * 1.5],
+		[TD_BASE + "wood-structure.glb",       0.40, -1.5, 0.8, PI * 0.5],
+		[TD_BASE + "wood-structure.glb",       0.80,  7.5, 0.75, 0.0],
+	]
+
+	# Props
+	var props: Array = [
+		[MD_BASE + "barrel.glb",  0.25, -2.5, 0.6, 0.0],
+		[MD_BASE + "barrel.glb",  0.28, -1.8, 0.55, 0.8],
+		[MD_BASE + "chest.glb",   0.50,  2.5, 0.6, PI * 0.3],
+		[MD_BASE + "banner.glb",  0.20,  0.0, 0.9, facing],
+		[MD_BASE + "banner.glb",  0.20, -6.0, 0.85, facing],
+		[MD_BASE + "barrel.glb",  0.70,  5.0, 0.55, 1.2],
+		[MD_BASE + "stairs.glb",  0.60, -5.0, 0.7, facing],
+	]
+
+	for def in buildings:
+		var x_off := outward * depth * float(def[1])
+		_place_town_piece(_gate_root, def[0], x_off, def[2], def[3], def[4])
+
+	for def in props:
+		var x_off := outward * depth * float(def[1])
+		_place_town_piece(_gate_root, def[0], x_off, def[2], def[3], def[4])
+
+func _place_town_piece(parent: Node3D, model_path: String, x_off: float, z_off: float, scale_mult: float, y_rot: float) -> void:
+	if not ResourceLoader.exists(model_path):
+		return
+	var scene: PackedScene = load(model_path)
+	var inst := scene.instantiate()
+	inst.scale = Vector3.ONE * CELL_SIZE * scale_mult
+	inst.position = Vector3(x_off, 0.0, z_off)
+	inst.rotation.y = y_rot
+	parent.add_child(inst)
+
+func _build_gate_doors(outward: float) -> void:
+	# Two wooden door panels that sit inside the gate archway, giving it
+	# the look of a real openable gate with wood plank doors.
+	var door_container := Node3D.new()
+	door_container.name = "GateDoors"
+	_gate_center.add_child(door_container)
+
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.45, 0.28, 0.12)  # dark oak wood
+
+	var plank_mat := StandardMaterial3D.new()
+	plank_mat.albedo_color = Color(0.35, 0.22, 0.08)  # darker planks for contrast
+
+	var iron_mat := StandardMaterial3D.new()
+	iron_mat.albedo_color = Color(0.2, 0.2, 0.22)  # dark iron fittings
+	iron_mat.metallic = 0.7
+	iron_mat.roughness = 0.4
+
+	# Door dimensions (in gate-local space, gate is scaled 1.5*CELL_SIZE)
+	# The gate model is ~1 unit across; we work in local scale
+	var door_h := 0.65  # height of the door panels
+	var door_w := 0.28  # half-width (two doors side by side)
+	var door_d := 0.06  # thickness
+
+	# Left door panel
+	for side in [-1.0, 1.0]:
+		var door := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(door_w, door_h, door_d)
+		door.mesh = box
+		door.set_surface_override_material(0, wood_mat)
+		door.position = Vector3(side * door_w * 0.5, door_h * 0.5 + 0.02, 0.0)
+		door_container.add_child(door)
+
+		# Horizontal plank lines across each door for detail
+		for plank_y in [0.15, 0.35, 0.55]:
+			var plank := MeshInstance3D.new()
+			var pbox := BoxMesh.new()
+			pbox.size = Vector3(door_w + 0.01, 0.04, door_d + 0.02)
+			plank.mesh = pbox
+			plank.set_surface_override_material(0, plank_mat)
+			plank.position = Vector3(side * door_w * 0.5, plank_y + 0.02, 0.0)
+			door_container.add_child(plank)
+
+		# Iron hinge bands
+		for hinge_y in [0.20, 0.50]:
+			var hinge := MeshInstance3D.new()
+			var hbox := BoxMesh.new()
+			hbox.size = Vector3(door_w * 0.6, 0.025, door_d + 0.04)
+			hinge.mesh = hbox
+			hinge.set_surface_override_material(0, iron_mat)
+			hinge.position = Vector3(side * door_w * 0.5, hinge_y + 0.02, 0.0)
+			door_container.add_child(hinge)
+
+	# Iron crossbar across both doors
+	var crossbar := MeshInstance3D.new()
+	var cbox := BoxMesh.new()
+	cbox.size = Vector3(door_w * 2.0 + 0.04, 0.035, door_d + 0.05)
+	crossbar.mesh = cbox
+	crossbar.set_surface_override_material(0, iron_mat)
+	crossbar.position = Vector3(0.0, door_h * 0.55 + 0.02, 0.0)
+	door_container.add_child(crossbar)
+
+	# Store materials for damage tinting
+	_gate_materials.append(wood_mat)
+	_gate_materials.append(plank_mat)
+	_gate_materials.append(iron_mat)
+
+func _apply_gate_material_override(node: Node3D) -> void:
+	# Find all MeshInstance3D children and apply a tintable override material
+	var meshes: Array[MeshInstance3D] = []
+	_collect_mesh_instances(node, meshes)
+	for mi in meshes:
+		for s in mi.mesh.get_surface_count() if mi.mesh else 0:
+			var base_mat := mi.mesh.surface_get_material(s)
+			if base_mat is StandardMaterial3D:
+				var override := base_mat.duplicate() as StandardMaterial3D
+				mi.set_surface_override_material(s, override)
+				_gate_materials.append(override)
+
+func _collect_mesh_instances(node: Node, result: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		result.append(node as MeshInstance3D)
+	for child in node.get_children():
+		_collect_mesh_instances(child, result)
+
+func _collect_gate_center_meshes() -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	if _gate_center:
+		_collect_mesh_instances(_gate_center, result)
+	return result
+
+func _on_hp_changed_gate(new_hp: int) -> void:
+	if _gate_destroyed:
+		return
+	if new_hp <= 0:
+		_destroy_gate()
+	else:
+		_update_gate_damage(new_hp)
+
+func _update_gate_damage(hp: int) -> void:
+	var hp_pct := float(hp) / float(STARTING_HP)
+
+	# Tint only the gate center materials darker/redder as damage increases
+	var damage_t := 1.0 - hp_pct  # 0 = full hp, 1 = nearly dead
+	var tint := Color(1.0, 1.0, 1.0).lerp(Color(0.35, 0.2, 0.15), damage_t)
+	if _gate_center:
+		for mesh in _collect_gate_center_meshes():
+			for si in mesh.get_surface_override_material_count():
+				var mat := mesh.get_surface_override_material(si)
+				if mat is StandardMaterial3D:
+					mat.albedo_color = mat.albedo_color.lerp(tint, 0.7)
+
+	# Apply increasing positional/rotational offsets to gate center only
+	if _gate_center and _gate_original_transforms.size() > 0:
+		var orig := _gate_original_transforms[0]
+		var jitter_rot := damage_t * 0.15  # up to ~8.6 degrees lean
+		_gate_center.transform = orig
+		_gate_center.rotation.z += jitter_rot * (1.0 if board_side == 0 else -1.0)
+		_gate_center.position.y -= damage_t * 0.3  # sink slightly
+
+	# Spawn rubble pieces at low HP
+	if hp_pct < 0.4 and _gate_rubble.size() == 0:
+		_spawn_gate_rubble()
+
+func _spawn_gate_rubble() -> void:
+	const WALL_HALF_PATH := "res://assets/models/mini-dungeon/Models/GLB format/wall-half.glb"
+	if not ResourceLoader.exists(WALL_HALF_PATH):
+		return
+	var scene: PackedScene = load(WALL_HALF_PATH)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = player_index * 100 + 7
+	for i in 3:
+		var rubble := scene.instantiate()
+		rubble.scale = Vector3.ONE * CELL_SIZE * 0.5
+		rubble.position = Vector3(
+			rng.randf_range(-0.8, 0.8),
+			0.0,
+			rng.randf_range(-CELL_SIZE * 2.0, CELL_SIZE * 2.0)
+		)
+		rubble.rotation = Vector3(
+			rng.randf_range(-0.3, 0.3),
+			rng.randf_range(0.0, TAU),
+			rng.randf_range(-0.5, 0.5)
+		)
+		_gate_root.add_child(rubble)
+		_gate_rubble.append(rubble)
+
+func _destroy_gate() -> void:
+	_gate_destroyed = true
+	AudioManager.play_sfx_path("res://assets/audio/sfx_explosion.ogg", 2.0)
+
+	# Animate all gate pieces flying outward
+	var all_pieces: Array[Node3D] = []
+	if _gate_center:
+		all_pieces.append(_gate_center)
+	for w in _gate_walls:
+		all_pieces.append(w)
+	for r in _gate_rubble:
+		all_pieces.append(r)
+
+	# Direction: pieces fly away from the board (outward from exit)
+	var outward_x := -1.0 if board_side == 0 else 1.0
+
+	for piece in all_pieces:
+		var tween := create_tween()
+		tween.set_parallel(true)
+		var target_pos := piece.position + Vector3(
+			outward_x * 6.0,
+			randf_range(1.0, 4.0),
+			piece.position.z * 0.5
+		)
+		tween.tween_property(piece, "position", target_pos, 1.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tween.tween_property(piece, "rotation:x", randf_range(-1.5, 1.5), 1.2)
+		tween.tween_property(piece, "rotation:z", randf_range(-2.0, 2.0), 1.2)
+		# Fade out by scaling down
+		tween.tween_property(piece, "scale", Vector3.ZERO, 1.2).set_delay(0.4)
+
 func _update_cursor_visual() -> void:
 	if _cursor == null:
 		return
 	var pos := cell_to_world(_cursor_col, _cursor_row)
 	_cursor.position = Vector3(pos.x, 0.55, pos.z)
-	# Tint red if cell is occupied, otherwise use player color
+	# Tint red if cell is occupied by tower/wall, green if trap, otherwise use player color
 	var mesh: MeshInstance3D = _cursor.get_child(0)
 	if mesh:
 		var mat: StandardMaterial3D = mesh.get_surface_override_material(0)
 		if mat:
+			var key := "%d,%d" % [_cursor_col, _cursor_row]
 			if _grid[_cursor_col][_cursor_row]:
 				mat.albedo_color = Color(1.0, 0.2, 0.2, 0.7)
+			elif _trap_nodes.has(key):
+				mat.albedo_color = Color(0.4, 0.7, 0.3, 0.7)
 			elif board_side == 0:
 				mat.albedo_color = Color(0.3, 0.8, 1.0, 0.75)
 			else:
@@ -335,7 +685,10 @@ func _try_place() -> void:
 		_queue_mob(data)
 		return
 	if _grid[_cursor_col][_cursor_row]:
-		return  # already occupied
+		return  # already occupied by tower/wall
+	var place_key := "%d,%d" % [_cursor_col, _cursor_row]
+	if _trap_nodes.has(place_key):
+		return  # already occupied by trap
 	# Protect cells near spawn (center edge) and exit (outer edge)
 	var near_spawn: bool
 	var near_exit: bool
@@ -358,20 +711,38 @@ func _try_place() -> void:
 		_grid[_cursor_col][_cursor_row] = true
 		EconomyManager.spend(player_index, data.cost)
 		_spawn_tower(data, _cursor_col, _cursor_row)
+	elif _selected_item is TrapData:
+		var data: TrapData = _selected_item
+		if not EconomyManager.can_afford(player_index, data.cost):
+			return
+		EconomyManager.spend(player_index, data.cost)
+		_spawn_trap(data, _cursor_col, _cursor_row)
 
 func _try_sell() -> void:
 	var key := "%d,%d" % [_cursor_col, _cursor_row]
-	if not _tower_nodes.has(key):
+	if _tower_nodes.has(key):
+		var tower_node: Node = _tower_nodes[key]
+		var data: TowerData = tower_node.get("data")
+		if data:
+			var hp_frac: float = 1.0
+			if tower_node.has_method("get_hp_fraction"):
+				hp_frac = tower_node.call("get_hp_fraction")
+			var refund := int(data.sell_value * hp_frac)
+			EconomyManager.add_coins(player_index, refund)
+		tower_node.queue_free()
+		_tower_nodes.erase(key)
+		_grid[_cursor_col][_cursor_row] = false
+		_pathfinding.bake_async()
+		tower_changed.emit()
 		return
-	var tower_node: Node = _tower_nodes[key]
-	var data: TowerData = tower_node.get("data")
-	if data:
-		EconomyManager.add_coins(player_index, data.sell_value)
-	tower_node.queue_free()
-	_tower_nodes.erase(key)
-	_grid[_cursor_col][_cursor_row] = false
-	_pathfinding.bake_async()
-	tower_changed.emit()
+	if _trap_nodes.has(key):
+		var trap_node: Node = _trap_nodes[key]
+		var data: TrapData = trap_node.get("data")
+		if data:
+			EconomyManager.add_coins(player_index, data.sell_value)
+		trap_node.queue_free()
+		_trap_nodes.erase(key)
+		trap_changed.emit()
 
 # ---------- tower spawning ----------
 
@@ -387,6 +758,40 @@ func _spawn_tower(data: TowerData, col: int, row: int) -> void:
 	_pathfinding.bake_async()
 	tower_changed.emit()
 	AudioManager.play_sfx_path("res://assets/audio/sfx_place.ogg", -4.0)
+
+# ---------- trap spawning ----------
+
+func _spawn_trap(data: TrapData, col: int, row: int) -> void:
+	var trap: Node = load("res://scenes/game/TrapNode.gd").new()
+	trap.data = data
+	trap.field_player_index = player_index
+	add_child(trap)
+	var world_pos := cell_to_world(col, row)
+	trap.position = Vector3(world_pos.x, 0.0, world_pos.z)
+	var key := "%d,%d" % [col, row]
+	_trap_nodes[key] = trap
+	trap.expired.connect(_on_trap_expired)
+	trap_changed.emit()
+	AudioManager.play_sfx_path("res://assets/audio/sfx_place.ogg", -4.0)
+
+func _on_trap_expired(trap: Node) -> void:
+	for key in _trap_nodes.keys():
+		if _trap_nodes[key] == trap:
+			_trap_nodes.erase(key)
+			trap_changed.emit()
+			break
+
+func get_trap_counts() -> Dictionary:
+	# Returns {display_name: {"count": int, "color": Color, "model_path": String, "texture_path": String}}
+	var counts := {}
+	for trap_node in _trap_nodes.values():
+		var data: TrapData = trap_node.get("data")
+		if data:
+			var n: String = data.display_name
+			if not counts.has(n):
+				counts[n] = {"count": 0, "color": data.icon_color, "model_path": data.model_path, "texture_path": data.texture_path}
+			counts[n]["count"] += 1
+	return counts
 
 # ---------- mob management ----------
 
@@ -512,6 +917,15 @@ func _on_state_changed(new_state: GameManager.GameState) -> void:
 					m.queue_free()
 			_mob_nodes.clear()
 			_pending_spawns.clear()
+			# Gold Mine income: award bonus coins for each Gold Mine trap
+			var mine_income := 0
+			for trap_node in _trap_nodes.values():
+				if is_instance_valid(trap_node):
+					var td: TrapData = trap_node.get("data")
+					if td and td.income_per_round > 0:
+						mine_income += td.income_per_round
+			if mine_income > 0:
+				EconomyManager.add_coins(player_index, mine_income)
 		GameManager.GameState.PLAY:
 			_cursor.visible = false
 			# Final bake at play start so mobs have an up-to-date nav mesh

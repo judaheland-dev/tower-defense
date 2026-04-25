@@ -33,6 +33,8 @@ var _pre_pause_state: GameState = GameState.PREP  # restored on unpause
 var player_count: int = 2  # 1 = PVE, 2 = PVP
 
 signal state_changed(new_state: GameState)
+signal overlay_navigate(direction: int)  # -1 = up, 1 = down
+signal overlay_confirm()
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -67,3 +69,13 @@ func _input(event: InputEvent) -> void:
 			GameState.GAME_OVER:
 				get_tree().paused = false
 				go_to_main_menu()
+
+	# Overlay navigation (pause menu, game over) - accept from either player
+	if current_state == GameState.PAUSED or current_state == GameState.GAME_OVER:
+		for prefix in ["p1_", "p2_"]:
+			if event.is_action_pressed(prefix + "cursor_up"):
+				overlay_navigate.emit(-1)
+			elif event.is_action_pressed(prefix + "cursor_down"):
+				overlay_navigate.emit(1)
+			elif event.is_action_pressed(prefix + "confirm"):
+				overlay_confirm.emit()

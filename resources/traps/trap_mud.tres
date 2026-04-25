@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_mud"
+display_name = "Mud Patch"
+description = "Soft ground that slows mobs by 40% while they walk over it."
+trap_type = 0
+cost = 25
+sell_value = 12
+slow_amount = 0.4
+damage_per_second = 0.0
+burst_damage = 0.0
+damage_amplify = 0.0
+heal_reduction = 0.0
+income_per_round = 0
+max_charges = 0
+icon_color = Color(0.8, 0.55, 0.15, 1)
+model_path = ""
+model_scale = 1.0
+texture_path = "res://assets/particles/smoke_01.png"

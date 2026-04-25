@@ -25,6 +25,7 @@ enum TowerType {
 
 # Combat stats (ignored for WALL)
 @export var range_units: float = 4.0      # detection radius in world units
+@export var min_range_units: float = 0.0  # minimum engagement distance (0 = no minimum)
 @export var damage: float = 10.0
 @export var attack_speed: float = 1.0     # attacks per second
 @export var splash_radius: float = 0.0    # 0 = single target

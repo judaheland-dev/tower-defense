@@ -4,3 +4,8 @@ res://scenes/game/Game.gd
 res://resources/MobData.gd
 res://resources/TowerData.gd
 res://scenes/game/ProjectileNode.gd
+res://scenes/game/TrapNode.gd
+res://autoloads/AudioManager.gd
+res://resources/TrapData.gd
+res://scenes/main_menu/MainMenu.gd
+res://autoloads/GameManager.gd

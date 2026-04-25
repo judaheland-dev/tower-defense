@@ -7,16 +7,24 @@ const MUSIC_BUS: StringName = &"Master"
 const SFX_BUS: StringName = &"Master"
 const SFX_POOL_SIZE: int = 16
 
-var _music_player: AudioStreamPlayer = null
+var _music_players: Array[AudioStreamPlayer] = []
+var _music_active: int = 0  # index into _music_players (0 or 1)
 var _music_loop: bool = false
+var _music_player: AudioStreamPlayer = null  # alias for backward compat
+var _crossfade_tween: Tween = null
 var _sfx_pool: Array[AudioStreamPlayer] = []
 var _proc_cache: Dictionary = {}
 
 func _ready() -> void:
-	_music_player = AudioStreamPlayer.new()
-	_music_player.bus = MUSIC_BUS
-	add_child(_music_player)
-	_music_player.finished.connect(_on_music_finished)
+	for i in 2:
+		var p := AudioStreamPlayer.new()
+		p.bus = MUSIC_BUS
+		p.volume_db = -80.0 if i == 1 else 0.0
+		add_child(p)
+		p.finished.connect(_on_music_finished.bind(i))
+		_music_players.append(p)
+	_music_player = _music_players[0]
+	_music_active = 0
 
 	for i in SFX_POOL_SIZE:
 		var p := AudioStreamPlayer.new()
@@ -34,19 +42,68 @@ func _ready() -> void:
 	_proc_cache["sfx_explosion"]= _gen_proc("cannon")
 
 func play_music(stream: AudioStream, loop: bool = true) -> void:
-	if _music_player.stream == stream and _music_player.playing:
+	var active := _music_players[_music_active]
+	if active.stream == stream and active.playing:
 		return
 	_music_loop = loop
-	_music_player.stream = stream
-	_music_player.play()
+	if _crossfade_tween and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	# Stop both, play on active at full volume
+	for p in _music_players:
+		p.stop()
+		p.volume_db = -80.0
+	active.stream = stream
+	active.volume_db = 0.0
+	active.play()
+
+func crossfade_music(stream: AudioStream, duration: float = 1.5, loop: bool = true) -> void:
+	var active := _music_players[_music_active]
+	if active.stream == stream and active.playing:
+		return
+	_music_loop = loop
+	if _crossfade_tween and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+
+	var next_idx := 1 - _music_active
+	var next := _music_players[next_idx]
+
+	next.stream = stream
+	next.volume_db = -80.0
+	next.play()
+
+	_crossfade_tween = create_tween().set_parallel(true)
+	_crossfade_tween.tween_property(active, "volume_db", -80.0, duration)
+	_crossfade_tween.tween_property(next, "volume_db", 0.0, duration)
+	_crossfade_tween.set_parallel(false)
+	_crossfade_tween.tween_callback(_finish_crossfade.bind(_music_active))
+	_music_active = next_idx
+	_music_player = _music_players[_music_active]
+
+func _finish_crossfade(old_idx: int) -> void:
+	_music_players[old_idx].stop()
+
+func fade_out_music(duration: float = 1.0) -> void:
+	if _crossfade_tween and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	var active := _music_players[_music_active]
+	if not active.playing:
+		return
+	_crossfade_tween = create_tween()
+	_crossfade_tween.tween_property(active, "volume_db", -80.0, duration)
+	_crossfade_tween.tween_callback(active.stop)
 
 func stop_music() -> void:
 	_music_loop = false
-	_music_player.stop()
+	if _crossfade_tween and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	for p in _music_players:
+		p.stop()
 
-func _on_music_finished() -> void:
-	if _music_loop and _music_player.stream != null:
-		_music_player.play()
+func _on_music_finished(player_idx: int) -> void:
+	if _music_loop and player_idx == _music_active:
+		var p := _music_players[player_idx]
+		if p.stream != null:
+			p.play()
 
 func play_sfx(stream: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	if stream == null:

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_poison_bog"
+display_name = "Poison Bog"
+description = "Toxic mire deals 5 DPS and reduces healing received by 60%. 8 charges."
+trap_type = 4
+cost = 45
+sell_value = 22
+slow_amount = 0.0
+damage_per_second = 5.0
+burst_damage = 0.0
+damage_amplify = 0.0
+heal_reduction = 0.6
+income_per_round = 0
+max_charges = 8
+icon_color = Color(0.7, 0.15, 0.9, 1)
+model_path = ""
+model_scale = 1.0
+texture_path = "res://assets/particles/smoke_03.png"

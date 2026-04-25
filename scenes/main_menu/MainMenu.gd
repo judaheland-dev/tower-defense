@@ -3,6 +3,12 @@ extends Node
 ## MainMenu - title screen with PVP / PVE mode selection.
 ## Builds its own scene tree in code; no .tscn required.
 
+var _buttons: Array[Button] = []
+var _actions: Array[Callable] = []
+var _focused_idx: int = 0
+var _nav_timer: float = 0.0
+const NAV_REPEAT_DELAY: float = 0.18
+
 func _ready() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.layer = 1
@@ -51,14 +57,68 @@ func _ready() -> void:
 	var btn_pvp := _make_button("2 Players (PVP)", font)
 	btn_pvp.pressed.connect(_on_pvp_pressed)
 	vbox.add_child(btn_pvp)
+	_buttons.append(btn_pvp)
+	_actions.append(_on_pvp_pressed)
 
 	var btn_pve := _make_button("vs AI (PVE)", font)
 	btn_pve.pressed.connect(_on_pve_pressed)
 	vbox.add_child(btn_pve)
+	_buttons.append(btn_pve)
+	_actions.append(_on_pve_pressed)
 
 	var btn_quit := _make_button("Quit", font)
 	btn_quit.pressed.connect(_on_quit_pressed)
 	vbox.add_child(btn_quit)
+	_buttons.append(btn_quit)
+	_actions.append(_on_quit_pressed)
+
+	_update_menu_focus()
+	_play_menu_music()
+
+func _process(delta: float) -> void:
+	# Accept input from either player's gamepad/keyboard
+	var dir := Vector2.ZERO
+	for i in 2:
+		var d := InputManager.get_cursor_dir(i)
+		if d != Vector2.ZERO:
+			dir = d
+			break
+
+	if dir == Vector2.ZERO:
+		_nav_timer = 0.0
+	else:
+		_nav_timer -= delta
+		if _nav_timer <= 0.0:
+			_nav_timer = NAV_REPEAT_DELAY
+			var new_idx := _focused_idx + int(sign(dir.y))
+			new_idx = clampi(new_idx, 0, _buttons.size() - 1)
+			if new_idx != _focused_idx:
+				_focused_idx = new_idx
+				_update_menu_focus()
+
+	for i in 2:
+		if InputManager.is_confirm_pressed(i):
+			if _focused_idx < _actions.size():
+				_actions[_focused_idx].call()
+			return
+
+func _update_menu_focus() -> void:
+	for i in _buttons.size():
+		var btn := _buttons[i]
+		if i == _focused_idx:
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(1.0, 0.85, 0.2, 0.2)
+			style.border_color = Color(1.0, 0.85, 0.2, 0.9)
+			style.set_border_width_all(3)
+			style.set_corner_radius_all(4)
+			btn.add_theme_stylebox_override("normal", style)
+		else:
+			btn.remove_theme_stylebox_override("normal")
+
+func _play_menu_music() -> void:
+	var path := "res://assets/audio/music_menu.ogg"
+	if ResourceLoader.exists(path):
+		AudioManager.crossfade_music(load(path))
 
 func _make_button(text: String, font: FontFile) -> Button:
 	var btn := Button.new()

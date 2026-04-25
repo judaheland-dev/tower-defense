@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_spike_pit"
+display_name = "Spike Pit"
+description = "Hidden spikes deal 20 burst damage to each mob that enters. 8 charges."
+trap_type = 1
+cost = 35
+sell_value = 17
+slow_amount = 0.0
+damage_per_second = 0.0
+burst_damage = 20.0
+damage_amplify = 0.0
+heal_reduction = 0.0
+income_per_round = 0
+max_charges = 8
+icon_color = Color(0.55, 0.55, 0.55, 1)
+model_path = "res://assets/models/mini-dungeon/Models/GLB format/trap.glb"
+model_scale = 3.0

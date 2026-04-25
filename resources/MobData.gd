@@ -17,6 +17,10 @@ class_name MobData
 
 # Behavior flags
 @export var attacks_defenses: bool = false       # stops at walls/towers in range and attacks them
+@export var defense_attack_damage: float = 10.0  # damage dealt per hit to towers/walls
+@export var defense_attack_speed: float = 1.0    # attacks per second against defenses
+@export var defense_attack_range: float = 2.0    # detection/attack radius for defenses
+@export var prefers_walls: bool = false           # if true, targets walls before towers
 @export var is_flying: bool = false              # ignores walls; navigates directly to exit
 @export var heals_nearby_allies: bool = false    # emits heal aura to mobs within heal_radius
 @export var heal_rate: float = 0.0               # HP/s healed to nearby allies

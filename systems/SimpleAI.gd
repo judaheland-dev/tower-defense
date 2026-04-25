@@ -32,6 +32,8 @@ func _load_items() -> void:
 		"res://resources/mobs/mob_armored.tres",
 		"res://resources/mobs/mob_fast.tres",
 		"res://resources/mobs/mob_healer.tres",
+		"res://resources/mobs/mob_siege.tres",
+		"res://resources/mobs/mob_breacher.tres",
 	]
 	for path in mob_paths:
 		if ResourceLoader.exists(path):

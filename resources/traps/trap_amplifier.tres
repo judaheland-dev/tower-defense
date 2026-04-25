@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_amplifier"
+display_name = "Amplifier Tile"
+description = "Mobs on this tile take 50% more damage from all sources."
+trap_type = 5
+cost = 60
+sell_value = 30
+slow_amount = 0.0
+damage_per_second = 0.0
+burst_damage = 0.0
+damage_amplify = 0.5
+heal_reduction = 0.0
+income_per_round = 0
+max_charges = 0
+icon_color = Color(1.0, 0.95, 0.2, 1)
+model_path = ""
+model_scale = 1.0
+texture_path = "res://assets/particles/magic_03.png"

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TrapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/TrapData.gd" id="1_trapdata"]
+
+[resource]
+script = ExtResource("1_trapdata")
+id = &"trap_lava"
+display_name = "Lava Pool"
+description = "Molten lava deals 15 damage per second to mobs standing on it. 6 charges."
+trap_type = 3
+cost = 50
+sell_value = 25
+slow_amount = 0.0
+damage_per_second = 15.0
+burst_damage = 0.0
+damage_amplify = 0.0
+heal_reduction = 0.0
+income_per_round = 0
+max_charges = 6
+icon_color = Color(1.0, 0.5, 0.0, 1)
+model_path = ""
+model_scale = 1.0
+texture_path = "res://assets/particles/fire_01.png"
