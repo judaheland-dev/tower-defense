@@ -12,7 +12,7 @@ metadata={
 
 [deps]
 
-source_file="res://assets/models/tower-defense-kit/textures/colormap.png"
+source_file="res://assets/models/tower-defense-kit/Textures/colormap.png"
 dest_files=["res://.godot/imported/colormap.png-17fad214855ec28aa3c61ed901835b72.s3tc.ctex", "res://.godot/imported/colormap.png-17fad214855ec28aa3c61ed901835b72.etc2.ctex"]
 
 [params]

@@ -6,31 +6,68 @@ extends Node
 var _nav_region: NavigationRegion3D = null
 var _spawn_pos: Vector3 = Vector3.ZERO
 var _exit_pos: Vector3 = Vector3.ZERO
-var _pending_callback: Callable
+var _bake_requested: bool = false
+var _bake_in_progress: bool = false
+var _pending_validation_callbacks: Array[Callable] = []
 
 func setup(nav_region: NavigationRegion3D, spawn_pos: Vector3, exit_pos: Vector3) -> void:
 	_nav_region = nav_region
 	_spawn_pos = spawn_pos
 	_exit_pos = exit_pos
-	# Initial bake
 	bake_async()
 
 # Bake nav mesh and call callback(valid: bool) when done.
 # The callback receives true if a path still exists from spawn to exit.
 func bake_and_validate(callback: Callable) -> void:
-	_pending_callback = callback
-	if not _nav_region.bake_finished.is_connected(_on_bake_finished_validate):
-		_nav_region.bake_finished.connect(_on_bake_finished_validate, CONNECT_ONE_SHOT)
-	_nav_region.bake_navigation_mesh()
+	if callback.is_valid():
+		_pending_validation_callbacks.append(callback)
+	_request_bake()
 
 # Bake without validation callback (e.g. after a sell).
 func bake_async() -> void:
-	_nav_region.bake_navigation_mesh()
+	_request_bake()
 
-func _on_bake_finished_validate() -> void:
-	var valid := _has_open_path()
-	if _pending_callback.is_valid():
-		_pending_callback.call(valid)
+func _request_bake() -> void:
+	if _nav_region == null or not is_instance_valid(_nav_region):
+		return
+	_bake_requested = true
+	if not _bake_in_progress:
+		_drain_bake_queue()
+
+func _drain_bake_queue() -> void:
+	_bake_in_progress = true
+	while _bake_requested and is_instance_valid(_nav_region):
+		_bake_requested = false
+
+		# Respect a bake started outside this controller, then start exactly one
+		# controller-owned bake. Requests received while awaiting it are collapsed
+		# into the next loop iteration.
+		if _nav_region.is_baking():
+			await _nav_region.bake_finished
+		if not is_instance_valid(_nav_region):
+			break
+
+		_nav_region.bake_navigation_mesh()
+		# Threadless Web exports may finish synchronously. Only await the signal
+		# when Godot reports that the asynchronous bake is still running.
+		if _nav_region.is_baking():
+			await _nav_region.bake_finished
+
+		# NavigationServer applies the new region on its synchronization step.
+		# Waiting one physics frame prevents validation from querying stale data.
+		if is_inside_tree():
+			await get_tree().physics_frame
+
+	var callbacks := _pending_validation_callbacks.duplicate()
+	_pending_validation_callbacks.clear()
+	var valid := _has_open_path() if is_instance_valid(_nav_region) else false
+	for callback in callbacks:
+		if callback.is_valid():
+			callback.call(valid)
+
+	_bake_in_progress = false
+	if _bake_requested:
+		_drain_bake_queue()
 
 func _has_open_path() -> bool:
 	var map := _nav_region.get_navigation_map()

@@ -1,0 +1,10 @@
+# Godot editor/import state
+.godot/
+
+# macOS Finder metadata
+.DS_Store
+
+# Local release outputs and signing credentials
+/build/
+/dist/
+export_credentials.cfg
