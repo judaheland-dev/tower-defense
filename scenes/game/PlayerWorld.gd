@@ -618,7 +618,7 @@ func _update_cursor_visual() -> void:
 			var key := "%d,%d" % [_cursor_col, _cursor_row]
 			if _sell_confirm_pending:
 				# Flashing red/orange to indicate sell confirmation pending
-				var flash := abs(sin(Time.get_ticks_msec() * 0.008))
+				var flash: float = absf(sin(Time.get_ticks_msec() * 0.008))
 				mat.albedo_color = Color(1.0, 0.15 + flash * 0.35, 0.1, 0.9)
 			elif _grid[_cursor_col][_cursor_row]:
 				# Check if this tower is upgradeable
