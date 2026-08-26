@@ -19,8 +19,12 @@ func setup(nav_region: NavigationRegion3D, spawn_pos: Vector3, exit_pos: Vector3
 # Bake nav mesh and call callback(valid: bool) when done.
 # The callback receives true if a path still exists from spawn to exit.
 func bake_and_validate(callback: Callable) -> void:
-	if callback.is_valid():
-		_pending_validation_callbacks.append(callback)
+	if not callback.is_valid():
+		return
+	if _nav_region == null or not is_instance_valid(_nav_region):
+		callback.call(false)
+		return
+	_pending_validation_callbacks.append(callback)
 	_request_bake()
 
 # Bake without validation callback (e.g. after a sell).
@@ -72,7 +76,7 @@ func _drain_bake_queue() -> void:
 func _has_open_path() -> bool:
 	var map := _nav_region.get_navigation_map()
 	if not NavigationServer3D.map_is_active(map):
-		return true  # map not ready yet - allow placement
+		return false  # validation must fail closed when navigation is unavailable
 	var start := NavigationServer3D.map_get_closest_point(map, _spawn_pos)
 	var end := NavigationServer3D.map_get_closest_point(map, _exit_pos)
 	var path := NavigationServer3D.map_get_path(map, start, end, true)

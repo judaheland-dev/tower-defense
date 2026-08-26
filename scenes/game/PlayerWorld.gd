@@ -57,6 +57,11 @@ var _sell_confirm_pending: bool = false
 var _sell_confirm_timer: float = 0.0
 const SELL_CONFIRM_TIMEOUT: float = 2.0  # seconds to confirm sell
 
+# Navigation validation is asynchronous. Keep one tower placement in flight so
+# a later input cannot change the grid before the callback accepts or rolls it
+# back.
+var _tower_placement_pending: bool = false
+
 signal hp_changed(new_hp: int)
 signal mob_reached_exit(mob: Node)
 signal selected_item_changed(item: Resource)
@@ -722,6 +727,8 @@ func get_selected_item_name() -> String:
 	return ""
 
 func _try_place() -> void:
+	if _tower_placement_pending:
+		return
 	if _selected_item == null:
 		return
 	# Mob purchases don't need a grid cell - handle before any grid checks
@@ -758,7 +765,13 @@ func _try_place() -> void:
 		# Place and pay immediately - validate path async and refund if blocked
 		_grid[_cursor_col][_cursor_row] = true
 		EconomyManager.spend(player_index, data.cost)
-		_spawn_tower(data, _cursor_col, _cursor_row)
+		_tower_placement_pending = true
+		var tower := _spawn_tower(data, _cursor_col, _cursor_row)
+		_pathfinding.bake_and_validate(
+			_on_tower_placement_validated.bind(
+				data.cost, _cursor_col, _cursor_row, tower
+			)
+		)
 	elif _selected_item is TrapData:
 		var data: TrapData = _selected_item
 		if not EconomyManager.can_afford(player_index, data.cost):
@@ -767,6 +780,8 @@ func _try_place() -> void:
 		_spawn_trap(data, _cursor_col, _cursor_row)
 
 func _try_sell() -> void:
+	if _tower_placement_pending:
+		return
 	var key := "%d,%d" % [_cursor_col, _cursor_row]
 	var has_sellable := _tower_nodes.has(key) or _trap_nodes.has(key)
 	if not has_sellable:
@@ -815,6 +830,8 @@ func _cancel_sell_confirm() -> void:
 # ---------- upgrade ----------
 
 func _try_upgrade() -> void:
+	if _tower_placement_pending:
+		return
 	var key := "%d,%d" % [_cursor_col, _cursor_row]
 	if not _tower_nodes.has(key):
 		return
@@ -839,7 +856,7 @@ func _try_upgrade() -> void:
 
 # ---------- tower spawning ----------
 
-func _spawn_tower(data: TowerData, col: int, row: int) -> void:
+func _spawn_tower(data: TowerData, col: int, row: int) -> Node:
 	var tower: Node = load("res://scenes/game/TowerNode.gd").new()
 	tower.data = data
 	tower.field_player_index = player_index
@@ -848,9 +865,34 @@ func _spawn_tower(data: TowerData, col: int, row: int) -> void:
 	tower.position = Vector3(world_pos.x, 0.0, world_pos.z)
 	var key := "%d,%d" % [col, row]
 	_tower_nodes[key] = tower
-	_pathfinding.bake_async()
 	tower_changed.emit()
 	AudioManager.play_sfx_path("res://assets/audio/sfx_place.ogg", -4.0)
+	return tower
+
+func _on_tower_placement_validated(
+		valid: bool, cost: int, col: int, row: int, tower: Node) -> void:
+	_tower_placement_pending = false
+	if valid:
+		return
+
+	var key := "%d,%d" % [col, row]
+	# Input is locked while validation runs, so an identity mismatch means the
+	# world is already being torn down. Do not refund an unrelated tower.
+	if _tower_nodes.get(key) != tower:
+		return
+
+	_tower_nodes.erase(key)
+	_grid[col][row] = false
+	if is_instance_valid(tower):
+		# Remove the collider from the scene tree before requesting the recovery
+		# bake. queue_free() alone would leave it visible to this frame's bake.
+		if tower.get_parent() != null:
+			tower.get_parent().remove_child(tower)
+		tower.queue_free()
+	EconomyManager.add_coins(player_index, cost)
+	_pathfinding.bake_async()
+	tower_changed.emit()
+	_update_cursor_visual()
 
 # ---------- trap spawning ----------
 
